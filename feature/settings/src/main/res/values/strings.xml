@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Caregiver settings</string>
+    <string name="settings_add_phrase">Add phrase</string>
+    <string name="settings_add_phrase_title">Add phrase</string>
+    <string name="settings_edit_phrase_title">Edit phrase</string>
+    <string name="settings_field_label">Button label</string>
+    <string name="settings_field_spoken_text">Spoken text</string>
+    <string name="settings_field_row">Grid row</string>
+    <string name="settings_field_column">Grid column</string>
+    <string name="settings_save">Save</string>
+    <string name="settings_cancel">Cancel</string>
+    <string name="settings_phrase_speaks">Speaks: %1$s</string>
+    <string name="settings_phrase_position">Position: row %1$d, column %2$d</string>
+    <string name="settings_edit_phrase">Edit %1$s</string>
+    <string name="settings_delete_phrase">Delete %1$s</string>
+</resources>

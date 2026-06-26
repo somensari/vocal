@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="board_title_default">Communication board</string>
+    <string name="board_empty_message">No phrases yet. Ask a caregiver to add some in Settings.</string>
+</resources>

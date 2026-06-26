@@ -1,0 +1,38 @@
+---
+description: AAC and accessibility requirements for UI and speech features
+globs: feature/**/*.kt,core/ui/**/*.kt,app/**/*.kt
+alwaysApply: false
+---
+
+# AAC accessibility rules
+
+Vocal serves people with speech impairments, often children, on tablets.
+
+## Touch targets
+
+- Board phrase cells: minimum **56dp** via `AacMinTouchTarget`
+- Other interactive controls: minimum **48dp**
+- Use shared components in `core/ui` when possible
+
+## TalkBack
+
+- Set `contentDescription` on every interactive composable
+- Board cells: use `phrase.spokenText`, not just the short label
+- Icon-only buttons need explicit descriptions from `strings.xml`
+
+## AAC UX
+
+- Keep the board screen calm: no caregiver controls on the main grid
+- Tap → speak immediately; avoid extra confirmation dialogs for users
+- TTS default; optional recorded audio via `audioPath` on phrases
+
+## Speech
+
+- Route speech through `SpeechRepository`, not direct TTS in UI
+- Support speech rate from `UserPreferencesRepository`
+
+## Do not
+
+- Add network dependencies to v1 user flows
+- Reduce touch target sizes for visual density
+- Hide essential actions behind multi-step gestures

@@ -1,0 +1,38 @@
+---
+description: Core Vocal project conventions for Kotlin Android AAC development
+alwaysApply: true
+---
+
+# Vocal project conventions
+
+Package namespace: `org.openaac.vocal`.
+
+## Architecture
+
+- Multi-module: `app`, `core/domain`, `core/data`, `core/ui`, `feature/*`
+- MVVM in feature modules; business logic in use cases under `core/domain`
+- Repository interfaces in domain; implementations in `core/data`
+- Use Hilt for dependency injection
+
+## Offline-first (v1)
+
+- No network calls unless explicitly requested for a cloud feature
+- Persist structured data in Room; preferences in DataStore
+- Store custom icons and recorded audio as local files with paths in Room
+
+## Strings and i18n
+
+- Never hardcode user-visible text in Composables or ViewModels
+- Use `strings.xml` in the owning module
+- English first; design for future locales
+
+## Code style
+
+- Prefer small, reviewable changes
+- Match existing naming and file layout
+- Use Kotlin coroutines and Flow for async data
+
+## Open source
+
+- Apache 2.0 license
+- Document public APIs and non-obvious AAC behavior
