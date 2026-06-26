@@ -22,9 +22,12 @@ See [README.md](README.md).
 Useful commands:
 
 ```bash
+./scripts/ci.sh              # unit tests, lint, debug APK (matches GitHub Actions)
 ./gradlew :app:assembleDebug
 ./gradlew test
 ```
+
+Pull requests to `main` run [Android CI](.github/workflows/android-ci.yml) automatically.
 
 ## Pull request checklist
 

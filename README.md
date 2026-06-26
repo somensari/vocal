@@ -1,5 +1,7 @@
 # Vocal
 
+[![Android CI](https://github.com/somensari/vocal/actions/workflows/android-ci.yml/badge.svg)](https://github.com/somensari/vocal/actions/workflows/android-ci.yml)
+
 **Vocal** is a free, open-source Android AAC (Augmentative and Alternative Communication) app for tablets. It helps children and people with speech impairments express thoughts and daily needs through simple, customizable communication boards.
 
 ## Status
@@ -41,6 +43,12 @@ Stack: Jetpack Compose, MVVM + Repository, Hilt, Room, DataStore.
 
 ```bash
 ./gradlew :app:assembleDebug
+```
+
+### CI checks (same as GitHub Actions)
+
+```bash
+./scripts/ci.sh
 ```
 
 ## Accessibility
