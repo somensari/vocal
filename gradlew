@@ -89,6 +89,12 @@ APP_BASE_NAME=${0##*/}
 APP_HOME=$( cd -P "${APP_HOME:-./}" > /dev/null && printf '%s
 ' "$PWD" ) || exit
 
+# Use JDK 17+ for local builds when the shell default Java is too old.
+if [ -z "${CI:-}" ] && [ -f "$APP_HOME/scripts/ensure-java.sh" ]; then
+    # shellcheck disable=SC2046
+    eval "$(bash "$APP_HOME/scripts/ensure-java.sh" --print-env)"
+fi
+
 # Use the maximum available, or set MAX_FD != -1 to use that value.
 MAX_FD=maximum
 
