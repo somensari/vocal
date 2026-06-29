@@ -31,7 +31,7 @@ Stack: Jetpack Compose, MVVM + Repository, Hilt, Room, DataStore.
 ## Requirements
 
 - Android Studio Ladybug or newer
-- JDK 17
+- **JDK 17+** for Gradle builds (bundled with Android Studio)
 - Android SDK 35
 - minSdk 26 (Android 8.0)
 
@@ -41,8 +41,23 @@ Stack: Jetpack Compose, MVVM + Repository, Hilt, Room, DataStore.
 2. Let Gradle sync complete.
 3. Run the `app` configuration on a tablet emulator or device.
 
+### Building from the terminal
+
+Gradle must use **Java 17 or newer**. If `./gradlew` fails with a Java 9/11 error, your shell is picking up an old JDK.
+
+**Quick fix (macOS with Android Studio):**
+
 ```bash
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+export PATH="$JAVA_HOME/bin:$PATH"
+java -version   # should show 17 or 21
 ./gradlew :app:assembleDebug
+```
+
+Or use the CI script, which auto-selects Android Studio's JDK when needed:
+
+```bash
+./scripts/ci.sh
 ```
 
 ### CI checks (same as GitHub Actions)
