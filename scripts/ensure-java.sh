@@ -3,6 +3,11 @@
 set -euo pipefail
 
 required_major=17
+print_env=false
+
+if [ "${1:-}" = "--print-env" ]; then
+  print_env=true
+fi
 
 java_major() {
   "$1" -version 2>&1 | awk -F '"' '/version/ {split($2, parts, "."); print parts[1]}'
@@ -14,37 +19,18 @@ use_java_home() {
     local major
     major="$(java_major "$home/bin/java")"
     if [ "$major" -ge "$required_major" ] 2>/dev/null; then
-      export JAVA_HOME="$home"
-      export PATH="$JAVA_HOME/bin:$PATH"
-      echo "Using JAVA_HOME=$JAVA_HOME (Java $major)"
+      JAVA_HOME="$home"
+      PATH="$JAVA_HOME/bin:$PATH"
+      export JAVA_HOME PATH
       return 0
     fi
   fi
   return 1
 }
 
-if [ -n "${JAVA_HOME:-}" ] && use_java_home "$JAVA_HOME"; then
-  return 0 2>/dev/null || exit 0
-fi
-
-if command -v java >/dev/null 2>&1; then
-  current_major="$(java_major "$(command -v java)")"
-  if [ "$current_major" -ge "$required_major" ] 2>/dev/null; then
-    return 0 2>/dev/null || exit 0
-  fi
-else
-  current_major="unknown"
-fi
-
-for candidate in \
-  "/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
-  "$HOME/Applications/Android Studio.app/Contents/jbr/Contents/Home"; do
-  if use_java_home "$candidate"; then
-    return 0 2>/dev/null || exit 0
-  fi
-done
-
-cat >&2 <<EOF
+fail() {
+  local current_major="${1:-unknown}"
+  cat >&2 <<EOF
 ERROR: Vocal requires JDK ${required_major}+, but the active Java is ${current_major}.
 
 Fix options:
@@ -56,4 +42,37 @@ Fix options:
 
 Then verify with: java -version
 EOF
-return 1 2>/dev/null || exit 1
+  exit 1
+}
+
+current_major="unknown"
+
+if [ -n "${JAVA_HOME:-}" ] && use_java_home "$JAVA_HOME"; then
+  :
+elif command -v java >/dev/null 2>&1; then
+  current_major="$(java_major "$(command -v java)")"
+  if [ "$current_major" -ge "$required_major" ] 2>/dev/null; then
+    :
+  else
+    found=false
+    for candidate in \
+      "/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
+      "$HOME/Applications/Android Studio.app/Contents/jbr/Contents/Home"; do
+      if use_java_home "$candidate"; then
+        found=true
+        break
+      fi
+    done
+    [ "$found" = true ] || fail "$current_major"
+  fi
+else
+  fail "$current_major"
+fi
+
+if [ "$print_env" = true ]; then
+  printf 'export JAVA_HOME=%q\n' "$JAVA_HOME"
+  printf 'export PATH=%q\n' "$PATH"
+  exit 0
+fi
+
+echo "Using JAVA_HOME=$JAVA_HOME (Java $(java_major "$JAVA_HOME/bin/java"))" >&2
