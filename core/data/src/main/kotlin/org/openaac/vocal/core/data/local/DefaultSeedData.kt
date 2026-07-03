@@ -33,7 +33,10 @@ internal object DefaultSeedData {
 
     suspend fun ensureDefaultBoard(boardDao: BoardDao, phraseDao: PhraseDao): BoardEntity {
         val existing = boardDao.getDefaultBoard()
-        if (existing != null) return existing
+        if (existing != null) {
+            backfillStarterPhraseIcons(existing.id, phraseDao)
+            return existing
+        }
 
         val boardId = boardDao.insert(
             BoardEntity(
@@ -65,5 +68,17 @@ internal object DefaultSeedData {
             )
         }
         return board
+    }
+
+    private suspend fun backfillStarterPhraseIcons(boardId: Long, phraseDao: PhraseDao) {
+        starterPhrases.forEach { seed ->
+            phraseDao.setIconPathIfMissing(
+                boardId = boardId,
+                label = seed.label,
+                row = seed.row,
+                column = seed.column,
+                iconPath = seed.iconPath,
+            )
+        }
     }
 }
