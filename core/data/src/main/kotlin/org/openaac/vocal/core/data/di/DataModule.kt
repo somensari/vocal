@@ -32,7 +32,8 @@ object DatabaseModule {
             context,
             VocalDatabase::class.java,
             "vocal.db",
-        ).fallbackToDestructiveMigration()
+        ).addMigrations(VocalDatabase.MIGRATION_1_2)
+            .fallbackToDestructiveMigration()
             .build()
 
     @Provides

@@ -1,5 +1,6 @@
 package org.openaac.vocal.feature.board
 
+import org.openaac.vocal.core.domain.model.BundledPhraseIcons
 import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.ui.components.AacCellButton
 import org.openaac.vocal.core.ui.theme.VocalTheme
@@ -76,7 +77,7 @@ fun BoardScreen(
             }
 
             else -> {
-                val columns = uiState.board?.columns ?: 3
+                val columns = uiState.board?.columns?.coerceAtLeast(1) ?: 4
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(columns),
                     contentPadding = PaddingValues(4.dp),
@@ -91,6 +92,7 @@ fun BoardScreen(
                         AacCellButton(
                             label = phrase.label,
                             contentDescription = phrase.spokenText,
+                            iconResId = bundledPhraseIconResId(phrase.iconPath),
                             onClick = { onPhraseSelected(phrase) },
                         )
                     }
@@ -110,11 +112,11 @@ private fun BoardScreenPreview() {
                     id = 1,
                     name = "My Board",
                     rows = 3,
-                    columns = 3,
+                    columns = 4,
                 ),
                 phrases = listOf(
-                    Phrase(1, 1, "Yes", "Yes", 0, 0),
-                    Phrase(2, 1, "Help", "I need help", 0, 1),
+                    Phrase(1, 1, "Yes", "Yes", 0, 0, iconPath = BundledPhraseIcons.YES),
+                    Phrase(2, 1, "Help", "I need help", 0, 1, iconPath = BundledPhraseIcons.HELP),
                 ),
                 isLoading = false,
             ),
