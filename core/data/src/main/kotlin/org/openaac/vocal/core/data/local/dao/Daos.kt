@@ -17,6 +17,9 @@ interface BoardDao {
     @Query("SELECT * FROM boards WHERE isDefault = 1 LIMIT 1")
     suspend fun getDefaultBoard(): BoardEntity?
 
+    @Query("SELECT * FROM boards WHERE id = :id")
+    suspend fun getBoard(id: Long): BoardEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(board: BoardEntity): Long
 
@@ -37,6 +40,23 @@ interface PhraseDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(phrase: PhraseEntity): Long
+
+    @Query(
+        """
+        UPDATE phrases
+        SET iconPath = :iconPath
+        WHERE boardId = :boardId
+            AND label = :label
+            AND spokenText = :spokenText
+            AND iconPath IS NULL
+        """,
+    )
+    suspend fun setIconPathIfMissing(
+        boardId: Long,
+        label: String,
+        spokenText: String,
+        iconPath: String,
+    )
 
     @Query("DELETE FROM phrases WHERE id = :id")
     suspend fun deleteById(id: Long)

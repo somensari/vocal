@@ -13,8 +13,15 @@
     <string name="settings_field_spoken_text">Spoken text</string>
     <string name="settings_field_row">Grid row</string>
     <string name="settings_field_column">Grid column</string>
+    <string name="settings_board_columns_title">Board columns</string>
+    <string name="settings_board_columns_description">Choose how many columns the main board shows. Rows grow automatically as phrases are added.</string>
+    <string name="settings_board_columns_option">%1$d</string>
+    <string name="settings_board_columns_option_description">Use %1$d board columns</string>
     <string name="settings_save">Save</string>
     <string name="settings_cancel">Cancel</string>
+    <string name="settings_message_missing_required_fields">Label and spoken text are required.</string>
+    <string name="settings_message_phrase_saved">Phrase saved.</string>
+    <string name="settings_message_phrase_deleted">Phrase deleted.</string>
     <string name="settings_phrase_speaks">Speaks: %1$s</string>
     <string name="settings_phrase_position">Position: row %1$d, column %2$d</string>
     <string name="settings_edit_phrase">Edit %1$s</string>
