@@ -9,18 +9,18 @@ import org.openaac.vocal.core.domain.model.BundledPhraseIcons
 internal object DefaultSeedData {
     const val DEFAULT_BOARD_NAME = "My Board"
     const val DEFAULT_ROWS = 3
-    const val DEFAULT_COLUMNS = 3
+    const val DEFAULT_COLUMNS = 4
 
     val starterPhrases = listOf(
         PhraseSeed("Yes", "Yes", 0, 0, BundledPhraseIcons.YES),
         PhraseSeed("No", "No", 0, 1, BundledPhraseIcons.NO),
         PhraseSeed("Help", "I need help", 0, 2, BundledPhraseIcons.HELP),
-        PhraseSeed("Water", "I want water", 1, 0, BundledPhraseIcons.WATER),
-        PhraseSeed("Bathroom", "I need the bathroom", 1, 1, BundledPhraseIcons.BATHROOM),
-        PhraseSeed("Happy", "I am happy", 1, 2, BundledPhraseIcons.HAPPY),
-        PhraseSeed("Sad", "I am sad", 2, 0, BundledPhraseIcons.SAD),
-        PhraseSeed("More", "More please", 2, 1, BundledPhraseIcons.MORE),
-        PhraseSeed("Stop", "Stop please", 2, 2, BundledPhraseIcons.STOP),
+        PhraseSeed("Water", "I want water", 0, 3, BundledPhraseIcons.WATER),
+        PhraseSeed("Bathroom", "I need the bathroom", 1, 0, BundledPhraseIcons.BATHROOM),
+        PhraseSeed("Happy", "I am happy", 1, 1, BundledPhraseIcons.HAPPY),
+        PhraseSeed("Sad", "I am sad", 1, 2, BundledPhraseIcons.SAD),
+        PhraseSeed("More", "More please", 1, 3, BundledPhraseIcons.MORE),
+        PhraseSeed("Stop", "Stop please", 2, 0, BundledPhraseIcons.STOP),
     )
 
     data class PhraseSeed(
@@ -75,8 +75,7 @@ internal object DefaultSeedData {
             phraseDao.setIconPathIfMissing(
                 boardId = boardId,
                 label = seed.label,
-                row = seed.row,
-                column = seed.column,
+                spokenText = seed.spokenText,
                 iconPath = seed.iconPath,
             )
         }

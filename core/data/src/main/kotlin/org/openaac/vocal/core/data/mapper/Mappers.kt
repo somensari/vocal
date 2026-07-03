@@ -12,6 +12,14 @@ internal fun BoardEntity.toDomain(): Board = Board(
     columns = columns,
 )
 
+internal fun Board.toEntity(isDefault: Boolean): BoardEntity = BoardEntity(
+    id = id,
+    name = name,
+    rows = rows,
+    columns = columns,
+    isDefault = isDefault,
+)
+
 internal fun PhraseEntity.toDomain(): Phrase = Phrase(
     id = id,
     boardId = boardId,

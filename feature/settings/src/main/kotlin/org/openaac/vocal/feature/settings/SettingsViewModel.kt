@@ -1,21 +1,26 @@
 package org.openaac.vocal.feature.settings
 
+import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.domain.usecase.DeletePhraseUseCase
 import org.openaac.vocal.core.domain.usecase.EnsureDefaultBoardUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveAllPhrasesUseCase
+import org.openaac.vocal.core.domain.usecase.ObserveBoardUseCase
 import org.openaac.vocal.core.domain.usecase.SavePhraseUseCase
+import org.openaac.vocal.core.domain.usecase.UpdateBoardUseCase
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+private val BoardColumnOptions = listOf(1, 2, 4, 8)
 
 data class PhraseEditorState(
     val id: Long = 0,
@@ -26,31 +31,43 @@ data class PhraseEditorState(
     val column: Int = 0,
 )
 
+enum class SettingsMessage {
+    MissingRequiredFields,
+    PhraseSaved,
+    PhraseDeleted,
+}
+
 data class SettingsUiState(
+    val board: Board? = null,
+    val boardColumnOptions: List<Int> = BoardColumnOptions,
     val phrases: List<Phrase> = emptyList(),
     val editor: PhraseEditorState? = null,
-    val message: String? = null,
+    val message: SettingsMessage? = null,
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    observeBoardUseCase: ObserveBoardUseCase,
     observeAllPhrasesUseCase: ObserveAllPhrasesUseCase,
     private val ensureDefaultBoardUseCase: EnsureDefaultBoardUseCase,
+    private val updateBoardUseCase: UpdateBoardUseCase,
     private val savePhraseUseCase: SavePhraseUseCase,
     private val deletePhraseUseCase: DeletePhraseUseCase,
 ) : ViewModel() {
 
     private val _editor = MutableStateFlow<PhraseEditorState?>(null)
-    private val _message = MutableStateFlow<String?>(null)
+    private val _message = MutableStateFlow<SettingsMessage?>(null)
 
     private var defaultBoardId: Long = 0
 
-    val uiState: StateFlow<SettingsUiState> = kotlinx.coroutines.flow.combine(
+    val uiState: StateFlow<SettingsUiState> = combine(
+        observeBoardUseCase(),
         observeAllPhrasesUseCase(),
         _editor,
         _message,
-    ) { phrases, editor, message ->
+    ) { board, phrases, editor, message ->
         SettingsUiState(
+            board = board,
             phrases = phrases,
             editor = editor,
             message = message,
@@ -100,6 +117,18 @@ class SettingsViewModel @Inject constructor(
         _editor.update { it?.copy(column = value.coerceAtLeast(0)) }
     }
 
+    fun updateBoardColumns(columns: Int) {
+        if (columns !in BoardColumnOptions) return
+
+        viewModelScope.launch {
+            val board = uiState.value.board ?: ensureDefaultBoardUseCase()
+            defaultBoardId = board.id
+            if (board.columns != columns) {
+                updateBoardUseCase(board.copy(columns = columns))
+            }
+        }
+    }
+
     fun dismissEditor() {
         _editor.value = null
     }
@@ -107,7 +136,7 @@ class SettingsViewModel @Inject constructor(
     fun saveEditor() {
         val editor = _editor.value ?: return
         if (editor.label.isBlank() || editor.spokenText.isBlank()) {
-            _message.value = "Label and spoken text are required."
+            _message.value = SettingsMessage.MissingRequiredFields
             return
         }
 
@@ -123,14 +152,14 @@ class SettingsViewModel @Inject constructor(
                 ),
             )
             _editor.value = null
-            _message.value = "Phrase saved."
+            _message.value = SettingsMessage.PhraseSaved
         }
     }
 
     fun deletePhrase(phrase: Phrase) {
         viewModelScope.launch {
             deletePhraseUseCase(phrase.id)
-            _message.value = "Phrase deleted."
+            _message.value = SettingsMessage.PhraseDeleted
         }
     }
 
