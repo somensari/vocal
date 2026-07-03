@@ -17,6 +17,9 @@ interface BoardDao {
     @Query("SELECT * FROM boards WHERE isDefault = 1 LIMIT 1")
     suspend fun getDefaultBoard(): BoardEntity?
 
+    @Query("SELECT * FROM boards WHERE id = :id")
+    suspend fun getBoard(id: Long): BoardEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(board: BoardEntity): Long
 

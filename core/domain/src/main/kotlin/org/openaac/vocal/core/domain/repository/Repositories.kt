@@ -8,6 +8,7 @@ interface BoardRepository {
     fun observeDefaultBoard(): Flow<Board?>
     fun observePhrases(boardId: Long): Flow<List<Phrase>>
     suspend fun ensureDefaultBoard(): Board
+    suspend fun updateBoard(board: Board)
 }
 
 interface PhraseRepository {

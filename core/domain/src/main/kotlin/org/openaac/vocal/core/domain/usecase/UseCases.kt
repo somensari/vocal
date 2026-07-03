@@ -27,6 +27,12 @@ class EnsureDefaultBoardUseCase @Inject constructor(
     suspend operator fun invoke(): Board = boardRepository.ensureDefaultBoard()
 }
 
+class UpdateBoardUseCase @Inject constructor(
+    private val boardRepository: BoardRepository,
+) {
+    suspend operator fun invoke(board: Board) = boardRepository.updateBoard(board)
+}
+
 class SpeakPhraseUseCase @Inject constructor(
     private val speechRepository: SpeechRepository,
 ) {
