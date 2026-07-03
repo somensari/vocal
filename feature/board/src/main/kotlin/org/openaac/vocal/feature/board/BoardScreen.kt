@@ -76,7 +76,7 @@ fun BoardScreen(
             }
 
             else -> {
-                val columns = uiState.board?.columns ?: 3
+                val columns = uiState.board?.columns?.coerceAtLeast(1) ?: 4
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(columns),
                     contentPadding = PaddingValues(4.dp),
@@ -110,7 +110,7 @@ private fun BoardScreenPreview() {
                     id = 1,
                     name = "My Board",
                     rows = 3,
-                    columns = 3,
+                    columns = 4,
                 ),
                 phrases = listOf(
                     Phrase(1, 1, "Yes", "Yes", 0, 0),

@@ -32,6 +32,11 @@ class BoardRepositoryImpl @Inject constructor(
         val board = DefaultSeedData.ensureDefaultBoard(boardDao, phraseDao)
         return board.toDomain()
     }
+
+    override suspend fun updateBoard(board: Board) {
+        val existing = boardDao.getBoard(board.id) ?: return
+        boardDao.update(board.toEntity(isDefault = existing.isDefault))
+    }
 }
 
 @Singleton
