@@ -1,16 +1,21 @@
 package org.openaac.vocal.feature.settings
 
+import org.openaac.vocal.core.domain.model.BoardThemePreset
 import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.ui.components.AacSecondaryButton
 import org.openaac.vocal.core.ui.theme.VocalTheme
+import org.openaac.vocal.core.ui.theme.VocalThemePresets
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.item
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -24,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -34,8 +40,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -59,6 +67,7 @@ fun SettingsRoute(
         onEditorSpokenTextChange = viewModel::updateEditorSpokenText,
         onEditorRowChange = viewModel::updateEditorRow,
         onEditorColumnChange = viewModel::updateEditorColumn,
+        onBoardThemePresetSelected = viewModel::setBoardThemePreset,
         onClearMessage = viewModel::clearMessage,
         modifier = modifier,
     )
@@ -77,6 +86,7 @@ fun SettingsScreen(
     onEditorSpokenTextChange: (String) -> Unit,
     onEditorRowChange: (Int) -> Unit,
     onEditorColumnChange: (Int) -> Unit,
+    onBoardThemePresetSelected: (BoardThemePreset) -> Unit,
     onClearMessage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -116,6 +126,13 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            item {
+                ThemePresetPicker(
+                    selectedPreset = uiState.selectedBoardThemePreset,
+                    onPresetSelected = onBoardThemePresetSelected,
+                )
+            }
+
             items(uiState.phrases, key = { it.id }) { phrase ->
                 PhraseListItem(
                     phrase = phrase,
@@ -137,6 +154,73 @@ fun SettingsScreen(
             onColumnChange = onEditorColumnChange,
         )
     }
+}
+
+@Composable
+private fun ThemePresetPicker(
+    selectedPreset: BoardThemePreset,
+    onPresetSelected: (BoardThemePreset) -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.settings_theme_title),
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Text(
+                text = stringResource(R.string.settings_theme_description),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            VocalThemePresets.all.forEach { preset ->
+                ThemePresetOption(
+                    preset = preset,
+                    selected = preset == selectedPreset,
+                    onClick = { onPresetSelected(preset) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemePresetOption(
+    preset: BoardThemePreset,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = 48.dp)
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                role = Role.RadioButton,
+            )
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = null,
+        )
+        Text(
+            text = stringResource(preset.labelResId()),
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+    }
+}
+
+private fun BoardThemePreset.labelResId(): Int = when (this) {
+    BoardThemePreset.DefaultBlue -> R.string.settings_theme_default_blue
+    BoardThemePreset.HighContrast -> R.string.settings_theme_high_contrast
+    BoardThemePreset.SoftPastel -> R.string.settings_theme_soft_pastel
 }
 
 @Composable
@@ -278,6 +362,7 @@ private fun SettingsScreenPreview() {
             onEditorSpokenTextChange = {},
             onEditorRowChange = {},
             onEditorColumnChange = {},
+            onBoardThemePresetSelected = {},
             onClearMessage = {},
         )
     }

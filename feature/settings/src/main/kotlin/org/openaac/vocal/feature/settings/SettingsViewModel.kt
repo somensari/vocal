@@ -1,17 +1,20 @@
 package org.openaac.vocal.feature.settings
 
+import org.openaac.vocal.core.domain.model.BoardThemePreset
 import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.domain.usecase.DeletePhraseUseCase
 import org.openaac.vocal.core.domain.usecase.EnsureDefaultBoardUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveAllPhrasesUseCase
+import org.openaac.vocal.core.domain.usecase.ObserveBoardThemePresetUseCase
 import org.openaac.vocal.core.domain.usecase.SavePhraseUseCase
+import org.openaac.vocal.core.domain.usecase.SetBoardThemePresetUseCase
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -28,6 +31,7 @@ data class PhraseEditorState(
 
 data class SettingsUiState(
     val phrases: List<Phrase> = emptyList(),
+    val selectedBoardThemePreset: BoardThemePreset = BoardThemePreset.Default,
     val editor: PhraseEditorState? = null,
     val message: String? = null,
 )
@@ -35,9 +39,11 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     observeAllPhrasesUseCase: ObserveAllPhrasesUseCase,
+    observeBoardThemePresetUseCase: ObserveBoardThemePresetUseCase,
     private val ensureDefaultBoardUseCase: EnsureDefaultBoardUseCase,
     private val savePhraseUseCase: SavePhraseUseCase,
     private val deletePhraseUseCase: DeletePhraseUseCase,
+    private val setBoardThemePresetUseCase: SetBoardThemePresetUseCase,
 ) : ViewModel() {
 
     private val _editor = MutableStateFlow<PhraseEditorState?>(null)
@@ -45,13 +51,15 @@ class SettingsViewModel @Inject constructor(
 
     private var defaultBoardId: Long = 0
 
-    val uiState: StateFlow<SettingsUiState> = kotlinx.coroutines.flow.combine(
+    val uiState: StateFlow<SettingsUiState> = combine(
         observeAllPhrasesUseCase(),
+        observeBoardThemePresetUseCase(),
         _editor,
         _message,
-    ) { phrases, editor, message ->
+    ) { phrases, boardThemePreset, editor, message ->
         SettingsUiState(
             phrases = phrases,
+            selectedBoardThemePreset = boardThemePreset,
             editor = editor,
             message = message,
         )
@@ -64,6 +72,12 @@ class SettingsViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             defaultBoardId = ensureDefaultBoardUseCase().id
+        }
+    }
+
+    fun setBoardThemePreset(preset: BoardThemePreset) {
+        viewModelScope.launch {
+            setBoardThemePresetUseCase(preset)
         }
     }
 

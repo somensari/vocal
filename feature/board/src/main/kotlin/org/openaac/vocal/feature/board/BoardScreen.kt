@@ -3,6 +3,7 @@ package org.openaac.vocal.feature.board
 import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.ui.components.AacCellButton
 import org.openaac.vocal.core.ui.theme.VocalTheme
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +49,7 @@ fun BoardScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .padding(16.dp),
     ) {
         Text(

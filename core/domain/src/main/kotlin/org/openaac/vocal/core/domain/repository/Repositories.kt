@@ -1,6 +1,7 @@
 package org.openaac.vocal.core.domain.repository
 
 import org.openaac.vocal.core.domain.model.Board
+import org.openaac.vocal.core.domain.model.BoardThemePreset
 import org.openaac.vocal.core.domain.model.Phrase
 import kotlinx.coroutines.flow.Flow
 
@@ -23,5 +24,7 @@ interface SpeechRepository {
 
 interface UserPreferencesRepository {
     val speechRate: Flow<Float>
+    val boardThemePreset: Flow<BoardThemePreset>
     suspend fun setSpeechRate(rate: Float)
+    suspend fun setBoardThemePreset(preset: BoardThemePreset)
 }
