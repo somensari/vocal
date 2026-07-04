@@ -5,7 +5,9 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import org.openaac.vocal.core.domain.model.BoardThemePreset
 import org.openaac.vocal.core.domain.repository.UserPreferencesRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -23,15 +25,27 @@ class UserPreferencesRepositoryImpl @Inject constructor(
 ) : UserPreferencesRepository {
 
     private val speechRateKey = floatPreferencesKey("speech_rate")
+    private val boardThemePresetKey = stringPreferencesKey("board_theme_preset")
 
     override val speechRate: Flow<Float> =
         context.userPreferencesDataStore.data.map { prefs ->
             prefs[speechRateKey] ?: DEFAULT_SPEECH_RATE
         }
 
+    override val boardThemePreset: Flow<BoardThemePreset> =
+        context.userPreferencesDataStore.data.map { prefs ->
+            BoardThemePreset.fromId(prefs[boardThemePresetKey])
+        }
+
     override suspend fun setSpeechRate(rate: Float) {
         context.userPreferencesDataStore.edit { prefs ->
             prefs[speechRateKey] = rate.coerceIn(MIN_SPEECH_RATE, MAX_SPEECH_RATE)
+        }
+    }
+
+    override suspend fun setBoardThemePreset(preset: BoardThemePreset) {
+        context.userPreferencesDataStore.edit { prefs ->
+            prefs[boardThemePresetKey] = preset.id
         }
     }
 

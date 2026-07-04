@@ -1,10 +1,12 @@
 package org.openaac.vocal.core.domain.usecase
 
 import org.openaac.vocal.core.domain.model.Board
+import org.openaac.vocal.core.domain.model.BoardThemePreset
 import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.domain.repository.BoardRepository
 import org.openaac.vocal.core.domain.repository.PhraseRepository
 import org.openaac.vocal.core.domain.repository.SpeechRepository
+import org.openaac.vocal.core.domain.repository.UserPreferencesRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
@@ -57,4 +59,18 @@ class DeletePhraseUseCase @Inject constructor(
     private val phraseRepository: PhraseRepository,
 ) {
     suspend operator fun invoke(id: Long) = phraseRepository.deletePhrase(id)
+}
+
+class ObserveBoardThemePresetUseCase @Inject constructor(
+    private val userPreferencesRepository: UserPreferencesRepository,
+) {
+    operator fun invoke(): Flow<BoardThemePreset> = userPreferencesRepository.boardThemePreset
+}
+
+class SetBoardThemePresetUseCase @Inject constructor(
+    private val userPreferencesRepository: UserPreferencesRepository,
+) {
+    suspend operator fun invoke(preset: BoardThemePreset) {
+        userPreferencesRepository.setBoardThemePreset(preset)
+    }
 }

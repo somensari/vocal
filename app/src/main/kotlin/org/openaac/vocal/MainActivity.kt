@@ -1,5 +1,7 @@
 package org.openaac.vocal
 
+import org.openaac.vocal.core.domain.model.BoardThemePreset
+import org.openaac.vocal.core.domain.repository.UserPreferencesRepository
 import org.openaac.vocal.core.ui.theme.VocalTheme
 import org.openaac.vocal.feature.board.BoardRoute
 import org.openaac.vocal.feature.settings.SettingsRoute
@@ -16,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -25,14 +28,22 @@ import dagger.hilt.android.AndroidEntryPoint
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var userPreferencesRepository: UserPreferencesRepository
+
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            VocalTheme {
+            val boardThemePreset by userPreferencesRepository.boardThemePreset.collectAsStateWithLifecycle(
+                initialValue = BoardThemePreset.Default,
+            )
+
+            VocalTheme(boardThemePreset = boardThemePreset) {
                 VocalApp()
             }
         }

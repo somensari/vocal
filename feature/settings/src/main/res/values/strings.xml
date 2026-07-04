@@ -2,6 +2,11 @@
 <resources>
     <string name="settings_title">Caregiver settings</string>
     <string name="settings_add_phrase">Add phrase</string>
+    <string name="settings_theme_title">Board theme</string>
+    <string name="settings_theme_description">Choose a preset for board colors and text.</string>
+    <string name="settings_theme_default_blue">Default Blue</string>
+    <string name="settings_theme_high_contrast">High Contrast</string>
+    <string name="settings_theme_soft_pastel">Soft Pastel</string>
     <string name="settings_add_phrase_title">Add phrase</string>
     <string name="settings_edit_phrase_title">Edit phrase</string>
     <string name="settings_field_label">Button label</string>

@@ -1,12 +1,15 @@
 package org.openaac.vocal.feature.settings
 
 import org.openaac.vocal.core.domain.model.Board
+import org.openaac.vocal.core.domain.model.BoardThemePreset
 import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.domain.usecase.DeletePhraseUseCase
 import org.openaac.vocal.core.domain.usecase.EnsureDefaultBoardUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveAllPhrasesUseCase
+import org.openaac.vocal.core.domain.usecase.ObserveBoardThemePresetUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveBoardUseCase
 import org.openaac.vocal.core.domain.usecase.SavePhraseUseCase
+import org.openaac.vocal.core.domain.usecase.SetBoardThemePresetUseCase
 import org.openaac.vocal.core.domain.usecase.UpdateBoardUseCase
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -41,6 +44,7 @@ data class SettingsUiState(
     val board: Board? = null,
     val boardColumnOptions: List<Int> = BoardColumnOptions,
     val phrases: List<Phrase> = emptyList(),
+    val selectedBoardThemePreset: BoardThemePreset = BoardThemePreset.Default,
     val editor: PhraseEditorState? = null,
     val message: SettingsMessage? = null,
 )
@@ -49,10 +53,12 @@ data class SettingsUiState(
 class SettingsViewModel @Inject constructor(
     observeBoardUseCase: ObserveBoardUseCase,
     observeAllPhrasesUseCase: ObserveAllPhrasesUseCase,
+    observeBoardThemePresetUseCase: ObserveBoardThemePresetUseCase,
     private val ensureDefaultBoardUseCase: EnsureDefaultBoardUseCase,
     private val updateBoardUseCase: UpdateBoardUseCase,
     private val savePhraseUseCase: SavePhraseUseCase,
     private val deletePhraseUseCase: DeletePhraseUseCase,
+    private val setBoardThemePresetUseCase: SetBoardThemePresetUseCase,
 ) : ViewModel() {
 
     private val _editor = MutableStateFlow<PhraseEditorState?>(null)
@@ -63,12 +69,14 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = combine(
         observeBoardUseCase(),
         observeAllPhrasesUseCase(),
+        observeBoardThemePresetUseCase(),
         _editor,
         _message,
-    ) { board, phrases, editor, message ->
+    ) { board, phrases, boardThemePreset, editor, message ->
         SettingsUiState(
             board = board,
             phrases = phrases,
+            selectedBoardThemePreset = boardThemePreset,
             editor = editor,
             message = message,
         )
@@ -81,6 +89,12 @@ class SettingsViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             defaultBoardId = ensureDefaultBoardUseCase().id
+        }
+    }
+
+    fun setBoardThemePreset(preset: BoardThemePreset) {
+        viewModelScope.launch {
+            setBoardThemePresetUseCase(preset)
         }
     }
 
