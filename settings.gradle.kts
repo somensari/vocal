@@ -13,7 +13,7 @@ pluginManagement {
     // KSP and Hilt must resolve from the same classloader (google/dagger#3965).
     // Versions must stay aligned with gradle/libs.versions.toml.
     plugins {
-        id("com.google.devtools.ksp") version "2.0.21-1.0.28"
+        id("com.google.devtools.ksp") version "2.3.2"
         id("com.google.dagger.hilt.android") version "2.52"
     }
 }
