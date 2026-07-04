@@ -66,6 +66,28 @@ Or use the CI script, which auto-selects Android Studio's JDK when needed:
 ./scripts/ci.sh
 ```
 
+### Troubleshooting builds
+
+**`KSP plugin was detected but its task class could not be found` (Hilt + KSP)**
+
+Gradle must see Hilt and KSP in the same classloader scope
+([google/dagger#3965](https://github.com/google/dagger/issues/3965)). This repo
+registers both in `settings.gradle.kts` `pluginManagement.plugins`, declares them
+at the root with `apply false`, and applies them in modules via `id("…")` (not
+version-catalog `alias`).
+
+If you still hit this after `git pull`:
+
+```bash
+./gradlew --stop
+rm -rf .gradle build app/build core/*/build feature/*/build
+./scripts/ci.sh
+```
+
+Use the Gradle wrapper (`./gradlew`), not a system-wide Gradle install. Stick to the
+AGP/Kotlin/Hilt versions in `gradle/libs.versions.toml` unless you are intentionally
+upgrading them.
+
 ## Accessibility
 
 Vocal is built for AAC users first:
