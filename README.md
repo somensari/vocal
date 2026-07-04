@@ -68,13 +68,13 @@ Or use the CI script, which auto-selects Android Studio's JDK when needed:
 
 ### Troubleshooting builds
 
-**`KSP plugin was detected but its task class could not be found` (Hilt + KSP)**
+**`KSP plugin was detected but its task class could not be found` / `ClassNotFoundException: KspTaskJvm`**
 
-Gradle must see Hilt and KSP in the same classloader scope
-([google/dagger#3965](https://github.com/google/dagger/issues/3965)). This repo
-registers both in `settings.gradle.kts` `pluginManagement.plugins`, declares them
-at the root with `apply false`, and applies them in modules via `id("…")` (not
-version-catalog `alias`).
+Hilt and KSP must load from the same Gradle classloader
+([google/dagger#3965](https://github.com/google/dagger/issues/3965)). This repo:
+
+1. Declares both in the root `build.gradle.kts` with `apply false`
+2. Applies both together from the root `subprojects { }` block (not per-module `plugins { }`)
 
 If you still hit this after `git pull`:
 
