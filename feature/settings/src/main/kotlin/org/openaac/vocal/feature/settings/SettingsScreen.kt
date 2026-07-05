@@ -136,7 +136,10 @@ fun SettingsScreen(
                     )
                 }
             } else {
-                DisabledAddPhraseFab(contentDescription = addPhraseDescription)
+                DisabledAddPhraseFab(
+                    contentDescription = addPhraseDescription,
+                    onClick = onAddPhrase,
+                )
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -185,10 +188,11 @@ fun SettingsScreen(
 @Composable
 private fun DisabledAddPhraseFab(
     contentDescription: String,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     FloatingActionButton(
-        onClick = {},
+        onClick = onClick,
         modifier = modifier
             .clearAndSetSemantics {
                 this.contentDescription = contentDescription
