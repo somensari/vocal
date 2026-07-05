@@ -88,7 +88,7 @@ fun BoardScreen(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .background(gridColors.gridBackground)
+                        .background(gridColors.boardGridBackground)
                         .padding(BoardGridGutter),
                     verticalArrangement = Arrangement.spacedBy(BoardGridGutter),
                 ) {
