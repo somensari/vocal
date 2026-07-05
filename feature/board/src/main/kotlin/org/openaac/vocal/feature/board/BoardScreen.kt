@@ -110,7 +110,7 @@ private fun BoardPhraseGrid(
 
     Column(
         modifier = modifier
-            .background(gridColors.gridBackground)
+            .background(gridColors.boardGridBackground)
             .padding(BoardGridGutter),
         verticalArrangement = Arrangement.spacedBy(BoardGridGutter),
     ) {
@@ -129,7 +129,7 @@ private fun BoardPhraseGrid(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .background(gridColors.gridBackground),
+                                .background(gridColors.boardGridBackground),
                         )
                     } else {
                         AacCellButton(

@@ -7,7 +7,6 @@ import org.openaac.vocal.core.domain.usecase.DeletePhraseUseCase
 import org.openaac.vocal.core.domain.usecase.EnsureDefaultBoardUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveAllPhrasesUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveBoardThemePresetUseCase
-import org.openaac.vocal.core.domain.usecase.ObserveBoardUseCase
 import org.openaac.vocal.core.domain.usecase.SavePhraseUseCase
 import org.openaac.vocal.core.domain.usecase.SetBoardThemePresetUseCase
 import org.openaac.vocal.core.domain.repository.SpeechRepository

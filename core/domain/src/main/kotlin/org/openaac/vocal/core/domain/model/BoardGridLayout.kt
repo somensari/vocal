@@ -1,7 +1,9 @@
 package org.openaac.vocal.core.domain.model
 
+/** Maximum number of phrases supported by the board grid in v1. */
 const val MAX_BOARD_PHRASES = 32
 
+/** Describes the power-of-two dimensions needed to display a board's phrase slots. */
 data class BoardGridSpec(
     val columns: Int,
     val rows: Int,
@@ -10,7 +12,7 @@ data class BoardGridSpec(
 
 /**
  * Computes a power-of-two board grid by repeatedly doubling the shorter side
- * until there are enough slots for [phraseCount] phrases.
+ * until there are enough slots for [phraseCount] phrases, clamped to [maxPhrases].
  */
 fun computeBoardGrid(
     phraseCount: Int,
