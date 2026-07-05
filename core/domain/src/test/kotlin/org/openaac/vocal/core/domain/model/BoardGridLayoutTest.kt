@@ -73,9 +73,21 @@ class BoardGridLayoutTest {
     }
 
     @Test
+    fun computeBoardGrid_clampsBelowZero() {
+        val grid = computeBoardGrid(-1)
+        assertEquals(BoardGridSpec(1, 1, 1), grid)
+    }
+
+    @Test
     fun computeBoardGrid_clampsAboveMax() {
         val grid = computeBoardGrid(40)
         assertEquals(BoardGridSpec(8, 4, 32), grid)
+    }
+
+    @Test
+    fun computeBoardGrid_clampsAboveCustomMax() {
+        val grid = computeBoardGrid(32, maxPhrases = 16)
+        assertEquals(BoardGridSpec(4, 4, 16), grid)
     }
 
     @Test
