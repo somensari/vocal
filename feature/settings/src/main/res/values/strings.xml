@@ -26,4 +26,9 @@
     <string name="settings_phrase_position">Position: row %1$d, column %2$d</string>
     <string name="settings_edit_phrase">Edit %1$s</string>
     <string name="settings_delete_phrase">Delete %1$s</string>
+    <string name="settings_speech_test_title">Speech output</string>
+    <string name="settings_speech_test_description">Play a short test phrase using the device text-to-speech engine.</string>
+    <string name="settings_speech_test_button">Test speech</string>
+    <string name="settings_message_speech_test_ok">Speech test sent to the device TTS engine.</string>
+    <string name="settings_message_speech_test_failed">Speech output is unavailable. Check device TTS settings or audio output.</string>
 </resources>

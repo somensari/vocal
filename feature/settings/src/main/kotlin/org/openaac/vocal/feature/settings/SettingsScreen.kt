@@ -73,6 +73,7 @@ fun SettingsRoute(
         onEditorRowChange = viewModel::updateEditorRow,
         onEditorColumnChange = viewModel::updateEditorColumn,
         onBoardThemePresetSelected = viewModel::setBoardThemePreset,
+        onTestSpeech = viewModel::testSpeech,
         onClearMessage = viewModel::clearMessage,
         modifier = modifier,
     )
@@ -93,6 +94,7 @@ fun SettingsScreen(
     onEditorRowChange: (Int) -> Unit,
     onEditorColumnChange: (Int) -> Unit,
     onBoardThemePresetSelected: (BoardThemePreset) -> Unit,
+    onTestSpeech: () -> Unit,
     onClearMessage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -103,6 +105,8 @@ fun SettingsScreen(
         }
         SettingsMessage.PhraseSaved -> stringResource(R.string.settings_message_phrase_saved)
         SettingsMessage.PhraseDeleted -> stringResource(R.string.settings_message_phrase_deleted)
+        SettingsMessage.SpeechTestOk -> stringResource(R.string.settings_message_speech_test_ok)
+        SettingsMessage.SpeechTestFailed -> stringResource(R.string.settings_message_speech_test_failed)
         null -> null
     }
 
@@ -158,6 +162,10 @@ fun SettingsScreen(
                 )
             }
 
+            item(key = "speech-test") {
+                SpeechTestSection(onTestSpeech = onTestSpeech)
+            }
+
             items(uiState.phrases, key = { it.id }) { phrase ->
                 PhraseListItem(
                     phrase = phrase,
@@ -178,6 +186,33 @@ fun SettingsScreen(
             onRowChange = onEditorRowChange,
             onColumnChange = onEditorColumnChange,
         )
+    }
+}
+
+@Composable
+private fun SpeechTestSection(
+    onTestSpeech: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.settings_speech_test_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = stringResource(R.string.settings_speech_test_description),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            AacSecondaryButton(
+                label = stringResource(R.string.settings_speech_test_button),
+                onClick = onTestSpeech,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 
@@ -444,6 +479,7 @@ private fun SettingsScreenPreview() {
             onEditorRowChange = {},
             onEditorColumnChange = {},
             onBoardThemePresetSelected = {},
+            onTestSpeech = {},
             onClearMessage = {},
         )
     }

@@ -10,6 +10,7 @@ import org.openaac.vocal.core.domain.usecase.ObserveBoardThemePresetUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveBoardUseCase
 import org.openaac.vocal.core.domain.usecase.SavePhraseUseCase
 import org.openaac.vocal.core.domain.usecase.SetBoardThemePresetUseCase
+import org.openaac.vocal.core.domain.repository.SpeechRepository
 import org.openaac.vocal.core.domain.usecase.UpdateBoardUseCase
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -38,6 +39,8 @@ enum class SettingsMessage {
     MissingRequiredFields,
     PhraseSaved,
     PhraseDeleted,
+    SpeechTestOk,
+    SpeechTestFailed,
 }
 
 data class SettingsUiState(
@@ -59,6 +62,7 @@ class SettingsViewModel @Inject constructor(
     private val savePhraseUseCase: SavePhraseUseCase,
     private val deletePhraseUseCase: DeletePhraseUseCase,
     private val setBoardThemePresetUseCase: SetBoardThemePresetUseCase,
+    private val speechRepository: SpeechRepository,
 ) : ViewModel() {
 
     private val _editor = MutableStateFlow<PhraseEditorState?>(null)
@@ -179,5 +183,23 @@ class SettingsViewModel @Inject constructor(
 
     fun clearMessage() {
         _message.value = null
+    }
+
+    fun testSpeech() {
+        viewModelScope.launch {
+            val error = speechRepository.speak(
+                text = TEST_SPEECH_PHRASE,
+                audioPath = null,
+            )
+            _message.value = if (error == null) {
+                SettingsMessage.SpeechTestOk
+            } else {
+                SettingsMessage.SpeechTestFailed
+            }
+        }
+    }
+
+    companion object {
+        private const val TEST_SPEECH_PHRASE = "Hello, this is a speech test."
     }
 }
