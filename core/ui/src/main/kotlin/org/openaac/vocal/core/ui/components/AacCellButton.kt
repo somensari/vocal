@@ -1,15 +1,13 @@
 package org.openaac.vocal.core.ui.components
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -27,7 +25,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import org.openaac.vocal.core.ui.accessibility.AacMinTouchTarget
+import org.openaac.vocal.core.ui.theme.ProvideBoardColors
 import org.openaac.vocal.core.ui.theme.VocalTheme
+import org.openaac.vocal.core.ui.theme.boardColors
+
+private val BoardCellCornerRadius = 4.dp
 
 @Composable
 fun AacCellButton(
@@ -37,40 +39,40 @@ fun AacCellButton(
     contentDescription: String = label,
     iconResId: Int? = null,
 ) {
-    Button(
+    val colors = boardColors()
+    Surface(
         onClick = onClick,
         modifier = modifier
-            .defaultMinSize(minWidth = AacMinTouchTarget, minHeight = AacMinTouchTarget)
+            .fillMaxSize()
             .semantics { this.contentDescription = contentDescription },
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-        ),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(BoardCellCornerRadius),
+        color = colors.cellBackground,
+        contentColor = colors.cellContent,
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
+                .fillMaxSize()
+                .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
         ) {
             if (iconResId != null) {
                 Icon(
                     painter = painterResource(iconResId),
                     contentDescription = null,
                     tint = Color.Unspecified,
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(40.dp),
                 )
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.titleMedium,
+                color = colors.cellContent,
                 textAlign = TextAlign.Center,
-                maxLines = 2,
+                maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
@@ -97,8 +99,13 @@ fun AacSecondaryButton(
 @Composable
 private fun AacCellButtonPreview() {
     VocalTheme {
-        Surface {
-            AacCellButton(label = "I need help", onClick = {})
+        ProvideBoardColors(
+            boardThemePreset = org.openaac.vocal.core.domain.model.BoardThemePreset.Default,
+            darkTheme = false,
+        ) {
+            Surface(modifier = Modifier.size(160.dp)) {
+                AacCellButton(label = "I need help", onClick = {})
+            }
         }
     }
 }

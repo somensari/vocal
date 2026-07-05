@@ -19,8 +19,14 @@ interface PhraseRepository {
     suspend fun deletePhrase(id: Long)
 }
 
+enum class SpeechError {
+    TtsUnavailable,
+    LanguageUnsupported,
+    SpeakFailed,
+}
+
 interface SpeechRepository {
-    suspend fun speak(text: String, audioPath: String?)
+    suspend fun speak(text: String, audioPath: String?): SpeechError?
 }
 
 interface UserPreferencesRepository {

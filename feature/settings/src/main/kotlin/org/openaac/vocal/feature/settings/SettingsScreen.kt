@@ -1,9 +1,7 @@
 package org.openaac.vocal.feature.settings
 
-import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.BoardThemePreset
 import org.openaac.vocal.core.domain.model.Phrase
-import org.openaac.vocal.core.ui.accessibility.AacSecondaryTouchTarget
 import org.openaac.vocal.core.ui.components.AacSecondaryButton
 import org.openaac.vocal.core.ui.theme.VocalTheme
 import org.openaac.vocal.core.ui.theme.VocalThemePresets
@@ -25,7 +23,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -65,7 +62,6 @@ fun SettingsRoute(
         onAddPhrase = viewModel::startAddPhrase,
         onEditPhrase = viewModel::startEditPhrase,
         onDeletePhrase = viewModel::deletePhrase,
-        onBoardColumnsSelected = viewModel::updateBoardColumns,
         onDismissEditor = viewModel::dismissEditor,
         onSaveEditor = viewModel::saveEditor,
         onEditorLabelChange = viewModel::updateEditorLabel,
@@ -73,6 +69,7 @@ fun SettingsRoute(
         onEditorRowChange = viewModel::updateEditorRow,
         onEditorColumnChange = viewModel::updateEditorColumn,
         onBoardThemePresetSelected = viewModel::setBoardThemePreset,
+        onTestSpeech = viewModel::testSpeech,
         onClearMessage = viewModel::clearMessage,
         modifier = modifier,
     )
@@ -85,7 +82,6 @@ fun SettingsScreen(
     onAddPhrase: () -> Unit,
     onEditPhrase: (Phrase) -> Unit,
     onDeletePhrase: (Phrase) -> Unit,
-    onBoardColumnsSelected: (Int) -> Unit,
     onDismissEditor: () -> Unit,
     onSaveEditor: () -> Unit,
     onEditorLabelChange: (String) -> Unit,
@@ -93,6 +89,7 @@ fun SettingsScreen(
     onEditorRowChange: (Int) -> Unit,
     onEditorColumnChange: (Int) -> Unit,
     onBoardThemePresetSelected: (BoardThemePreset) -> Unit,
+    onTestSpeech: () -> Unit,
     onClearMessage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -103,6 +100,9 @@ fun SettingsScreen(
         }
         SettingsMessage.PhraseSaved -> stringResource(R.string.settings_message_phrase_saved)
         SettingsMessage.PhraseDeleted -> stringResource(R.string.settings_message_phrase_deleted)
+        SettingsMessage.PhraseLimitReached -> stringResource(R.string.settings_message_phrase_limit_reached)
+        SettingsMessage.SpeechTestOk -> stringResource(R.string.settings_message_speech_test_ok)
+        SettingsMessage.SpeechTestFailed -> stringResource(R.string.settings_message_speech_test_failed)
         null -> null
     }
 
@@ -121,15 +121,24 @@ fun SettingsScreen(
             )
         },
         floatingActionButton = {
+            val addPhraseDescription = if (uiState.canAddPhrase) {
+                stringResource(R.string.settings_add_phrase)
+            } else {
+                stringResource(R.string.settings_add_phrase_limit_reached)
+            }
             FloatingActionButton(
                 onClick = onAddPhrase,
-                content = {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(R.string.settings_add_phrase),
-                    )
+                containerColor = if (uiState.canAddPhrase) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
                 },
-            )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = addPhraseDescription,
+                )
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
@@ -140,22 +149,15 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item(key = "board-column-selector") {
-                BoardColumnSelector(
-                    options = uiState.boardColumnOptions,
-                    selectedColumns = uiState.board?.columns,
-                    onColumnsSelected = onBoardColumnsSelected,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                )
-            }
-
             item(key = "theme-preset-picker") {
                 ThemePresetPicker(
                     selectedPreset = uiState.selectedBoardThemePreset,
                     onPresetSelected = onBoardThemePresetSelected,
                 )
+            }
+
+            item(key = "speech-test") {
+                SpeechTestSection(onTestSpeech = onTestSpeech)
             }
 
             items(uiState.phrases, key = { it.id }) { phrase ->
@@ -181,51 +183,29 @@ fun SettingsScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BoardColumnSelector(
-    options: List<Int>,
-    selectedColumns: Int?,
-    onColumnsSelected: (Int) -> Unit,
+private fun SpeechTestSection(
+    onTestSpeech: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier) {
+    Card(modifier = modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = stringResource(R.string.settings_board_columns_title),
+                text = stringResource(R.string.settings_speech_test_title),
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
-                text = stringResource(R.string.settings_board_columns_description),
+                text = stringResource(R.string.settings_speech_test_description),
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                options.forEach { columns ->
-                    val optionLabel = stringResource(
-                        R.string.settings_board_columns_option,
-                        columns,
-                    )
-                    val optionDescription = stringResource(
-                        R.string.settings_board_columns_option_description,
-                        columns,
-                    )
-                    FilterChip(
-                        selected = selectedColumns == columns,
-                        onClick = { onColumnsSelected(columns) },
-                        label = { Text(optionLabel) },
-                        enabled = selectedColumns != null,
-                        modifier = Modifier
-                            .defaultMinSize(
-                                minWidth = AacSecondaryTouchTarget,
-                                minHeight = AacSecondaryTouchTarget,
-                            )
-                            .semantics { contentDescription = optionDescription },
-                    )
-                }
-            }
+            AacSecondaryButton(
+                label = stringResource(R.string.settings_speech_test_button),
+                onClick = onTestSpeech,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -422,12 +402,6 @@ private fun SettingsScreenPreview() {
     VocalTheme {
         SettingsScreen(
             uiState = SettingsUiState(
-                board = Board(
-                    id = 1,
-                    name = "My Board",
-                    rows = 3,
-                    columns = 4,
-                ),
                 phrases = listOf(
                     Phrase(1, 1, "Yes", "Yes", 0, 0),
                     Phrase(2, 1, "Help", "I need help", 0, 1),
@@ -436,7 +410,6 @@ private fun SettingsScreenPreview() {
             onAddPhrase = {},
             onEditPhrase = {},
             onDeletePhrase = {},
-            onBoardColumnsSelected = {},
             onDismissEditor = {},
             onSaveEditor = {},
             onEditorLabelChange = {},
@@ -444,6 +417,7 @@ private fun SettingsScreenPreview() {
             onEditorRowChange = {},
             onEditorColumnChange = {},
             onBoardThemePresetSelected = {},
+            onTestSpeech = {},
             onClearMessage = {},
         )
     }

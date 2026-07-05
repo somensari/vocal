@@ -13,17 +13,20 @@
     <string name="settings_field_spoken_text">Spoken text</string>
     <string name="settings_field_row">Grid row</string>
     <string name="settings_field_column">Grid column</string>
-    <string name="settings_board_columns_title">Board columns</string>
-    <string name="settings_board_columns_description">Choose how many columns the main board shows. Rows grow automatically as phrases are added.</string>
-    <string name="settings_board_columns_option">%1$d</string>
-    <string name="settings_board_columns_option_description">Use %1$d board columns</string>
     <string name="settings_save">Save</string>
     <string name="settings_cancel">Cancel</string>
     <string name="settings_message_missing_required_fields">Label and spoken text are required.</string>
     <string name="settings_message_phrase_saved">Phrase saved.</string>
     <string name="settings_message_phrase_deleted">Phrase deleted.</string>
+    <string name="settings_message_phrase_limit_reached">This board can have at most 32 phrases. Remove a phrase or create a new board in the future.</string>
+    <string name="settings_add_phrase_limit_reached">Cannot add phrase. Board limit of 32 phrases reached.</string>
     <string name="settings_phrase_speaks">Speaks: %1$s</string>
     <string name="settings_phrase_position">Position: row %1$d, column %2$d</string>
     <string name="settings_edit_phrase">Edit %1$s</string>
     <string name="settings_delete_phrase">Delete %1$s</string>
+    <string name="settings_speech_test_title">Speech output</string>
+    <string name="settings_speech_test_description">Play a short test phrase using the device text-to-speech engine.</string>
+    <string name="settings_speech_test_button">Test speech</string>
+    <string name="settings_message_speech_test_ok">Speech test sent to the device TTS engine.</string>
+    <string name="settings_message_speech_test_failed">Speech output is unavailable. Check device TTS settings or audio output.</string>
 </resources>

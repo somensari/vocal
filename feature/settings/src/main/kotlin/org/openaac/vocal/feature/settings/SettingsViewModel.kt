@@ -1,7 +1,7 @@
 package org.openaac.vocal.feature.settings
 
-import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.BoardThemePreset
+import org.openaac.vocal.core.domain.model.MAX_BOARD_PHRASES
 import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.domain.usecase.DeletePhraseUseCase
 import org.openaac.vocal.core.domain.usecase.EnsureDefaultBoardUseCase
@@ -10,7 +10,7 @@ import org.openaac.vocal.core.domain.usecase.ObserveBoardThemePresetUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveBoardUseCase
 import org.openaac.vocal.core.domain.usecase.SavePhraseUseCase
 import org.openaac.vocal.core.domain.usecase.SetBoardThemePresetUseCase
-import org.openaac.vocal.core.domain.usecase.UpdateBoardUseCase
+import org.openaac.vocal.core.domain.repository.SpeechRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,8 +22,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-private val BoardColumnOptions = listOf(1, 2, 4, 8)
 
 data class PhraseEditorState(
     val id: Long = 0,
@@ -38,27 +36,28 @@ enum class SettingsMessage {
     MissingRequiredFields,
     PhraseSaved,
     PhraseDeleted,
+    PhraseLimitReached,
+    SpeechTestOk,
+    SpeechTestFailed,
 }
 
 data class SettingsUiState(
-    val board: Board? = null,
-    val boardColumnOptions: List<Int> = BoardColumnOptions,
     val phrases: List<Phrase> = emptyList(),
     val selectedBoardThemePreset: BoardThemePreset = BoardThemePreset.Default,
     val editor: PhraseEditorState? = null,
     val message: SettingsMessage? = null,
+    val canAddPhrase: Boolean = true,
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    observeBoardUseCase: ObserveBoardUseCase,
     observeAllPhrasesUseCase: ObserveAllPhrasesUseCase,
     observeBoardThemePresetUseCase: ObserveBoardThemePresetUseCase,
     private val ensureDefaultBoardUseCase: EnsureDefaultBoardUseCase,
-    private val updateBoardUseCase: UpdateBoardUseCase,
     private val savePhraseUseCase: SavePhraseUseCase,
     private val deletePhraseUseCase: DeletePhraseUseCase,
     private val setBoardThemePresetUseCase: SetBoardThemePresetUseCase,
+    private val speechRepository: SpeechRepository,
 ) : ViewModel() {
 
     private val _editor = MutableStateFlow<PhraseEditorState?>(null)
@@ -67,18 +66,17 @@ class SettingsViewModel @Inject constructor(
     private var defaultBoardId: Long = 0
 
     val uiState: StateFlow<SettingsUiState> = combine(
-        observeBoardUseCase(),
         observeAllPhrasesUseCase(),
         observeBoardThemePresetUseCase(),
         _editor,
         _message,
-    ) { board, phrases, boardThemePreset, editor, message ->
+    ) { phrases, boardThemePreset, editor, message ->
         SettingsUiState(
-            board = board,
             phrases = phrases,
             selectedBoardThemePreset = boardThemePreset,
             editor = editor,
             message = message,
+            canAddPhrase = phrases.size < MAX_BOARD_PHRASES,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -99,6 +97,10 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun startAddPhrase() {
+        if (uiState.value.phrases.size >= MAX_BOARD_PHRASES) {
+            _message.value = SettingsMessage.PhraseLimitReached
+            return
+        }
         _editor.value = PhraseEditorState(boardId = defaultBoardId)
         _message.value = null
     }
@@ -131,18 +133,6 @@ class SettingsViewModel @Inject constructor(
         _editor.update { it?.copy(column = value.coerceAtLeast(0)) }
     }
 
-    fun updateBoardColumns(columns: Int) {
-        if (columns !in BoardColumnOptions) return
-
-        viewModelScope.launch {
-            val board = uiState.value.board ?: ensureDefaultBoardUseCase()
-            defaultBoardId = board.id
-            if (board.columns != columns) {
-                updateBoardUseCase(board.copy(columns = columns))
-            }
-        }
-    }
-
     fun dismissEditor() {
         _editor.value = null
     }
@@ -151,6 +141,12 @@ class SettingsViewModel @Inject constructor(
         val editor = _editor.value ?: return
         if (editor.label.isBlank() || editor.spokenText.isBlank()) {
             _message.value = SettingsMessage.MissingRequiredFields
+            return
+        }
+
+        val isNewPhrase = editor.id == 0L
+        if (isNewPhrase && uiState.value.phrases.size >= MAX_BOARD_PHRASES) {
+            _message.value = SettingsMessage.PhraseLimitReached
             return
         }
 
@@ -179,5 +175,23 @@ class SettingsViewModel @Inject constructor(
 
     fun clearMessage() {
         _message.value = null
+    }
+
+    fun testSpeech() {
+        viewModelScope.launch {
+            val error = speechRepository.speak(
+                text = TEST_SPEECH_PHRASE,
+                audioPath = null,
+            )
+            _message.value = if (error == null) {
+                SettingsMessage.SpeechTestOk
+            } else {
+                SettingsMessage.SpeechTestFailed
+            }
+        }
+    }
+
+    companion object {
+        private const val TEST_SPEECH_PHRASE = "Hello, this is a speech test."
     }
 }

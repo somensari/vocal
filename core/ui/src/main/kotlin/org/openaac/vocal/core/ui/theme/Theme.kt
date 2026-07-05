@@ -119,6 +119,11 @@ fun VocalTheme(
     MaterialTheme(
         colorScheme = VocalThemePresets.colorsFor(boardThemePreset, darkTheme),
         typography = VocalThemePresets.typographyFor(boardThemePreset),
-        content = content,
-    )
+    ) {
+        ProvideBoardColors(
+            boardThemePreset = boardThemePreset,
+            darkTheme = darkTheme,
+            content = content,
+        )
+    }
 }
