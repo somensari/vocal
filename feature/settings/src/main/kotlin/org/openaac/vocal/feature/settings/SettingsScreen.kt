@@ -43,8 +43,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -126,17 +128,17 @@ fun SettingsScreen(
             } else {
                 stringResource(R.string.settings_add_phrase_limit_reached)
             }
-            FloatingActionButton(
-                onClick = onAddPhrase,
-                containerColor = if (uiState.canAddPhrase) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
+            if (uiState.canAddPhrase) {
+                FloatingActionButton(onClick = onAddPhrase) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = addPhraseDescription,
+                    )
+                }
+            } else {
+                DisabledAddPhraseFab(
                     contentDescription = addPhraseDescription,
+                    onClick = onAddPhrase,
                 )
             }
         },
@@ -179,6 +181,30 @@ fun SettingsScreen(
             onSpokenTextChange = onEditorSpokenTextChange,
             onRowChange = onEditorRowChange,
             onColumnChange = onEditorColumnChange,
+        )
+    }
+}
+
+@Composable
+private fun DisabledAddPhraseFab(
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FloatingActionButton(
+        onClick = onClick,
+        modifier = modifier
+            .clearAndSetSemantics {
+                this.contentDescription = contentDescription
+                role = Role.Button
+                disabled()
+            },
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = null,
         )
     }
 }
