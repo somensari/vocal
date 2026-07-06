@@ -1,6 +1,7 @@
 package org.openaac.vocal.feature.board
 
 import org.openaac.vocal.core.domain.model.BundledPhraseIcons
+import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.domain.model.computeBoardGrid
 import org.openaac.vocal.core.ui.components.AacCellButton
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -50,8 +53,6 @@ fun BoardScreen(
     onPhraseSelected: (Phrase) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val gridColors = boardColors()
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -83,41 +84,63 @@ fun BoardScreen(
             }
 
             else -> {
-                val grid = computeBoardGrid(uiState.phrases.size)
-                Column(
+                BoardPhraseGrid(
+                    phrases = uiState.phrases,
+                    onPhraseSelected = onPhraseSelected,
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth()
-                        .background(gridColors.boardGridBackground)
-                        .padding(BoardGridGutter),
-                    verticalArrangement = Arrangement.spacedBy(BoardGridGutter),
-                ) {
-                    for (rowIndex in 0 until grid.rows) {
-                        Row(
+                        .fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BoardPhraseGrid(
+    phrases: List<Phrase>,
+    onPhraseSelected: (Phrase) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val gridColors = boardColors()
+    val grid = computeBoardGrid(phrases.size)
+    val sortedPhrases = remember(phrases) {
+        phrases.sortedWith(compareBy<Phrase> { it.row }.thenBy { it.column })
+    }
+
+    Column(
+        modifier = modifier
+            .background(gridColors.boardGridBackground)
+            .padding(BoardGridGutter),
+        verticalArrangement = Arrangement.spacedBy(BoardGridGutter),
+    ) {
+        for (rowIndex in 0 until grid.rows) {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(BoardGridGutter),
+            ) {
+                for (columnIndex in 0 until grid.columns) {
+                    val slotIndex = rowIndex * grid.columns + columnIndex
+                    val phrase = sortedPhrases.getOrNull(slotIndex)
+                    if (phrase == null) {
+                        Spacer(
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(BoardGridGutter),
-                        ) {
-                            for (columnIndex in 0 until grid.columns) {
-                                val slotIndex = rowIndex * grid.columns + columnIndex
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight(),
-                                ) {
-                                    if (slotIndex < uiState.phrases.size) {
-                                        val phrase = uiState.phrases[slotIndex]
-                                        AacCellButton(
-                                            label = phrase.label,
-                                            contentDescription = phrase.spokenText,
-                                            iconResId = bundledPhraseIconResId(phrase.iconPath),
-                                            onClick = { onPhraseSelected(phrase) },
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                                .fillMaxHeight()
+                                .background(gridColors.boardGridBackground),
+                        )
+                    } else {
+                        AacCellButton(
+                            label = phrase.label,
+                            contentDescription = phrase.spokenText,
+                            iconResId = bundledPhraseIconResId(phrase.iconPath),
+                            onClick = { onPhraseSelected(phrase) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                        )
                     }
                 }
             }
@@ -130,22 +153,7 @@ fun BoardScreen(
 private fun BoardScreenFivePhrasesPreview() {
     VocalTheme {
         BoardScreen(
-            uiState = BoardUiState(
-                board = org.openaac.vocal.core.domain.model.Board(
-                    id = 1,
-                    name = "My Board",
-                    rows = 3,
-                    columns = 4,
-                ),
-                phrases = listOf(
-                    Phrase(1, 1, "Yes", "Yes", 0, 0, iconPath = BundledPhraseIcons.YES),
-                    Phrase(2, 1, "No", "No", 0, 1, iconPath = BundledPhraseIcons.NO),
-                    Phrase(3, 1, "Help", "I need help", 0, 2, iconPath = BundledPhraseIcons.HELP),
-                    Phrase(4, 1, "Water", "I want water", 0, 3, iconPath = BundledPhraseIcons.WATER),
-                    Phrase(5, 1, "Stop", "Stop please", 1, 0, iconPath = BundledPhraseIcons.STOP),
-                ),
-                isLoading = false,
-            ),
+            uiState = sampleBoardUiState(phraseCount = 5),
             onPhraseSelected = {},
         )
     }
@@ -156,26 +164,69 @@ private fun BoardScreenFivePhrasesPreview() {
 private fun BoardScreenNinePhrasesPreview() {
     VocalTheme {
         BoardScreen(
-            uiState = BoardUiState(
-                board = org.openaac.vocal.core.domain.model.Board(
-                    id = 1,
-                    name = "My Board",
-                    rows = 3,
-                    columns = 4,
-                ),
-                phrases = (1..9).map { index ->
-                    Phrase(
-                        index.toLong(),
-                        1,
-                        "Phrase $index",
-                        "Phrase $index",
-                        index / 4,
-                        index % 4,
-                    )
-                },
-                isLoading = false,
-            ),
+            uiState = sampleBoardUiState(phraseCount = 9),
             onPhraseSelected = {},
         )
     }
+}
+
+@Preview(showBackground = true, widthDp = 800, heightDp = 500)
+@Composable
+private fun BoardScreenSeventeenPhrasesPreview() {
+    VocalTheme {
+        BoardScreen(
+            uiState = sampleBoardUiState(phraseCount = 17),
+            onPhraseSelected = {},
+        )
+    }
+}
+
+private fun sampleBoardUiState(phraseCount: Int): BoardUiState {
+    val grid = computeBoardGrid(phraseCount)
+    return BoardUiState(
+        board = Board(
+            id = 1,
+            name = "My Board",
+            rows = 1,
+            columns = 1,
+        ),
+        phrases = (1..phraseCount).map { index ->
+            val zeroBasedIndex = index - 1
+            Phrase(
+                id = index.toLong(),
+                boardId = 1,
+                label = samplePhraseLabel(index),
+                spokenText = samplePhraseSpokenText(index),
+                row = zeroBasedIndex / grid.columns,
+                column = zeroBasedIndex % grid.columns,
+                iconPath = samplePhraseIcon(index),
+            )
+        },
+        isLoading = false,
+    )
+}
+
+private fun samplePhraseLabel(index: Int): String = when (index) {
+    1 -> "Yes"
+    2 -> "No"
+    3 -> "Help"
+    4 -> "Water"
+    5 -> "Stop"
+    else -> "Phrase $index"
+}
+
+private fun samplePhraseSpokenText(index: Int): String = when (index) {
+    3 -> "I need help"
+    4 -> "I want water"
+    5 -> "Stop please"
+    else -> samplePhraseLabel(index)
+}
+
+private fun samplePhraseIcon(index: Int): String? = when (index) {
+    1 -> BundledPhraseIcons.YES
+    2 -> BundledPhraseIcons.NO
+    3 -> BundledPhraseIcons.HELP
+    4 -> BundledPhraseIcons.WATER
+    5 -> BundledPhraseIcons.STOP
+    else -> null
 }
