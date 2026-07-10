@@ -1,0 +1,21 @@
+{
+  // Vocal compiles to JVM 17 (root build.gradle.kts). Point JAVA_HOME at JDK 17+ before
+  // opening the workspace — e.g. Android Studio JBR on macOS (see README.md).
+  "java.jdt.ls.java.home": "${env:JAVA_HOME}",
+  "java.import.gradle.java.home": "${env:JAVA_HOME}",
+
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.import.gradle.enabled": true,
+  "java.import.gradle.wrapper.enabled": true,
+
+  "kotlin.languageServer.enabled": true,
+
+  "files.watcherExclude": {
+    "**/.gradle/**": true,
+    "**/build/**": true
+  },
+  "search.exclude": {
+    "**/.gradle": true,
+    "**/build": true
+  }
+}

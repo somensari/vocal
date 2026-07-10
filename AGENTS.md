@@ -51,6 +51,8 @@ UI changes must meet AAC accessibility requirements:
 - Test with TalkBack on a tablet emulator or device
 - PR checklist: [.github/pull_request_template.md](.github/pull_request_template.md)
 
+**Cursor:** run `/onboard` for a project summary; `/feature-board` for board work; `/a11y-check` before UI PRs; `/pr-ready` to package the PR.
+
 ---
 
 ## Agent instructions
