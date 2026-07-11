@@ -93,6 +93,16 @@ Also read [docs/accessibility.md](docs/accessibility.md) for any UI or speech ch
 | Shared UI component | `core/ui` |
 | Navigation / DI module | `app` |
 
+### GitHub (MCP or `gh`)
+
+When GitHub MCP is enabled (`~/.cursor/mcp.json`, see `.cursor/mcp.json.example`):
+
+- Look up issues and PRs for `somensari/vocal` before implementing from a ticket
+- Check CI status on open PRs when babysitting or reviewing
+- Prefer MCP for structured GitHub queries; fall back to `gh` CLI if MCP is unavailable
+
+Do not commit tokens or copy MCP config with real credentials into the repo.
+
 ---
 
 ## Cursor Cloud specific instructions
