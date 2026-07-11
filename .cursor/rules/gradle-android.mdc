@@ -1,0 +1,74 @@
+---
+description: Gradle, KSP, and Android module conventions for Vocal
+globs: "**/*.gradle.kts,gradle/**"
+alwaysApply: false
+---
+
+# Gradle and Android build rules
+
+## Version catalog
+
+- Single source of truth: `gradle/libs.versions.toml`
+- Add libraries and plugin versions there; reference via `libs.*` in module scripts
+- Do not add `repositories { }` blocks in module scripts — `settings.gradle.kts` uses `FAIL_ON_PROJECT_REPOS`
+
+## KSP and Hilt (common footgun)
+
+KSP and Hilt must resolve from the **same classloader**. This project declares them in two places; keep both in sync:
+
+1. **`settings.gradle.kts`** — `pluginManagement.plugins` with explicit versions matching `libs.versions.toml` (`ksp`, `hilt`)
+2. **Root `build.gradle.kts`** — `id("com.google.devtools.ksp") apply false` and `id("com.google.dagger.hilt.android") apply false`
+
+Module scripts apply them by id (not alias):
+
+```kotlin
+id("com.google.devtools.ksp")
+id("com.google.dagger.hilt.android")
+```
+
+- Use **`ksp(...)`**, never `kapt` or `annotationProcessor`
+- Hilt: `implementation(libs.hilt.android)` + `ksp(libs.hilt.compiler)`
+- Room (only in `core/data`): `ksp(libs.androidx.room.compiler)` with schema export:
+
+```kotlin
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+```
+
+When bumping Kotlin, KSP, Hilt, or AGP, update `libs.versions.toml` **and** the matching entries in `settings.gradle.kts` together.
+
+## JDK and SDK
+
+- **Compile target:** Java 17 / JVM 17 (`JvmTarget.JVM_17` in root `build.gradle.kts`)
+- **`compileSdk` / `targetSdk`:** 35; **`minSdk`:** 26
+- Gradle daemon may use JDK 21 via `gradle/gradle-daemon-jvm.properties`; that is fine — module bytecode stays at 17
+
+## Module layout and dependencies
+
+| Module | Plugins | May depend on |
+|--------|---------|---------------|
+| `core/domain` | `kotlin-jvm` only | coroutines, `javax.inject` |
+| `core/data` | android-library, ksp, hilt | `:core:domain` |
+| `core/ui` | android-library, compose | `:core:domain` |
+| `feature/*` | android-library, compose, ksp, hilt | `:core:domain`, `:core:ui` |
+| `app` | android-application, compose, ksp, hilt | all modules |
+
+**Dependency direction:** `feature → core → domain`. Never `:core:domain` → Android modules. Never `feature/*` → `:core:data` directly (go through domain interfaces; wire implementations in `app`).
+
+## Adding a module
+
+1. Create directory and `build.gradle.kts` matching a peer module's plugin set
+2. Add `include(":…")` in `settings.gradle.kts`
+3. Set `android.namespace` to `org.openaac.vocal.<path>`
+4. Wire into `app` dependencies if user-facing
+
+## Compose dependencies
+
+- Enable `buildFeatures { compose = true }` on Compose modules
+- Use `platform(libs.androidx.compose.bom)` then BOM-managed artifacts without versions
+- `debugImplementation` for `ui-tooling` only
+
+## Verify changes
+
+After editing Gradle files, run `./scripts/ci.sh` or at minimum `./gradlew :app:assembleDebug`.

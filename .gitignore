@@ -24,3 +24,5 @@ google-services.json
 
 # Cursor / local
 *.log
+local/
+.cursor/mcp.json

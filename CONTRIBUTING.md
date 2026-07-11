@@ -41,6 +41,57 @@ Pull requests to `main` run [Android CI](.github/workflows/android-ci.yml) autom
 
 When changing UI or speech behavior, read `docs/accessibility.md` and `.cursor/rules/aac-accessibility.mdc`.
 
+## Workflows
+
+Vocal defines repeatable workflows in `.cursor/commands/` for **Cursor** users. The same steps apply in **Android Studio** or any editor — run them manually using the checklist below.
+
+### Cursor slash commands
+
+Type `/` in Cursor Agent chat:
+
+| Command | When to use |
+|---------|-------------|
+| `/onboard` | New to the repo — architecture, modules, CI, accessibility overview |
+| `/feature-board` | Implement or extend the communication board (`feature/board`) |
+| `/a11y-check` | Before a PR that touches UI — review diff for AAC accessibility |
+| `/pr-ready` | Before opening a PR — run CI, summarize diff, draft PR description |
+
+Command files live in [`.cursor/commands/`](.cursor/commands/) and are committed to the repo. See also [AGENTS.md](AGENTS.md) for agent and Cloud VM notes.
+
+### Manual checklist (all contributors)
+
+Use this if you do not use Cursor, or as a reference for what each command does:
+
+**Starting out (equivalent to `/onboard`)**
+
+1. Read [README.md](README.md), this file, and [AGENTS.md](AGENTS.md) (human quickstart section).
+2. Skim module layout: `app`, `core/domain`, `core/data`, `core/ui`, `feature/board`, `feature/settings`.
+3. Run `./scripts/ci.sh` once to confirm your environment.
+
+**Board feature work (equivalent to `/feature-board`)**
+
+1. Plan which modules change (UI → `feature/board`; logic → `core/domain`; persistence → `core/data`).
+2. Keep the board screen calm — caregiver edit controls stay in `feature/settings`.
+3. Use `AacCellButton`, `strings.xml`, and `SpeakPhraseUseCase` — no direct TTS in UI.
+4. Run `./scripts/ci.sh` when done.
+
+**Accessibility review (equivalent to `/a11y-check`)**
+
+1. Read [docs/accessibility.md](docs/accessibility.md).
+2. For each changed UI file, verify:
+   - Board cells ≥ 56dp; other controls ≥ 48dp
+   - `contentDescription` on interactive elements (board cells: spoken phrase text)
+   - User-visible strings in `strings.xml`, not hardcoded in Compose
+3. On a tablet emulator: enable TalkBack, traverse changed screens, confirm announcements and tap targets.
+
+**Before opening a PR (equivalent to `/pr-ready`)**
+
+1. Run `./scripts/ci.sh` — fix any failures.
+2. Review your branch diff (`git diff main...HEAD`).
+3. Fill out the [pull request template](.github/pull_request_template.md) honestly — check boxes only for items you verified.
+4. If UI changed: document TalkBack / tablet testing in the PR description.
+5. Confirm no secrets or `local/` files are staged; push and open the PR.
+
 ## Questions
 
 Open a GitHub discussion or issue if you are unsure whether a change fits the project direction.
