@@ -66,6 +66,33 @@ Or use the CI script, which auto-selects Android Studio's JDK when needed:
 ./scripts/ci.sh
 ```
 
+### New Relic monitoring builds
+
+New Relic Mobile monitoring is disabled by default. Maintainers can enable an
+instrumented build by supplying both an enable flag and the Android application
+token through local or CI configuration; do not commit tokens.
+
+For local builds, add these values to the git-ignored `local.properties`:
+
+```properties
+newRelic.enabled=true
+newRelic.applicationToken=YOUR_NEW_RELIC_ANDROID_APP_TOKEN
+```
+
+Or pass them through the environment/Gradle properties:
+
+```bash
+NEW_RELIC_ENABLED=true NEW_RELIC_APPLICATION_TOKEN=YOUR_TOKEN ./gradlew :app:assembleDebug
+./gradlew :app:assembleRelease -PnewRelic.enabled=true -PnewRelic.applicationToken=YOUR_TOKEN
+```
+
+When enabled, the New Relic Gradle plugin instruments every Android module
+(`app`, `core/data`, `core/ui`, and `feature/*`) and `MainActivity` starts the
+agent silently. When disabled, the plugin is not applied and no token is needed.
+Handled exceptions can be reported through the domain `MonitoringRepository`;
+do not add phrase text, custom icon paths, recorded audio paths, or other AAC
+communication content as New Relic custom attributes/events.
+
 ### Troubleshooting builds
 
 **`KSP plugin was detected but its task class could not be found` / `ClassNotFoundException: KspTaskJvm`**

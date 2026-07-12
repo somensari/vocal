@@ -6,6 +6,12 @@ plugins {
     id("com.google.dagger.hilt.android")
 }
 
+fun String.toBuildConfigStringLiteral(): String =
+    "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
+val newRelicEnabled = rootProject.extra["newRelicEnabled"] as Boolean
+val newRelicApplicationToken = rootProject.extra["newRelicApplicationToken"] as String
+
 android {
     namespace = "org.openaac.vocal"
     compileSdk = 35
@@ -18,6 +24,12 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("Boolean", "NEW_RELIC_ENABLED", newRelicEnabled.toString())
+        buildConfigField(
+            "String",
+            "NEW_RELIC_APPLICATION_TOKEN",
+            newRelicApplicationToken.toBuildConfigStringLiteral(),
+        )
     }
 
     buildTypes {
@@ -36,6 +48,7 @@ android {
     }
 
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 }
@@ -59,6 +72,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.newrelic.android.agent)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

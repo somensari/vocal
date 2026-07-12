@@ -36,4 +36,7 @@ jobs:
         run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
 
       - name: Run CI checks
+        env:
+          NEW_RELIC_ENABLED: ${{ vars.NEW_RELIC_ENABLED || 'false' }}
+          NEW_RELIC_APPLICATION_TOKEN: ${{ secrets.NEW_RELIC_APPLICATION_TOKEN }}
         run: ./scripts/ci.sh
