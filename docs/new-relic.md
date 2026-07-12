@@ -1,7 +1,8 @@
 # New Relic monitoring (maintainers)
 
-Vocal can optionally report crashes, ANRs, handled exceptions, and app-start /
-performance metrics to [New Relic Mobile](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android/).
+Vocal can optionally report crashes, ANRs, handled exceptions, custom events,
+interactions, and app-start / performance metrics to
+[New Relic Mobile](https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/get-started/introduction-new-relic-mobile-android/).
 Instrumentation is **silent** (no caregiver or AAC-user UI) and is an explicit
 network exception to the offline-first product rule.
 
@@ -18,9 +19,12 @@ Add to git-ignored `local.properties` (repo root):
 
 ```properties
 sdk.dir=/path/to/Android/sdk
-newrelic.enabled=true
-newrelic.token=YOUR_NEW_RELIC_MOBILE_APP_TOKEN
+newRelic.enabled=true
+newRelic.applicationToken=YOUR_NEW_RELIC_MOBILE_APP_TOKEN
 ```
+
+Aliases also accepted: `newrelic.enabled`, `newrelic.token` /
+`newrelic.applicationToken`.
 
 Then assemble as usual:
 
@@ -40,9 +44,10 @@ Set repository or organization secrets / variables (never commit them):
 | Secret / env | Purpose |
 |--------------|---------|
 | `NEW_RELIC_ENABLED` | Set to `true` to turn the agent on for that build |
-| `NEW_RELIC_TOKEN` | New Relic Mobile application token |
+| `NEW_RELIC_APPLICATION_TOKEN` or `NEW_RELIC_TOKEN` | New Relic Mobile application token |
 
-Gradle also accepts `-Pnewrelic.enabled=true` and `-Pnewrelic.token=…`.
+Gradle also accepts `-PnewRelic.enabled=true` and
+`-PnewRelic.applicationToken=…` (or the `newrelic.*` aliases).
 
 Precedence: Gradle `-P` → environment → `local.properties`.
 
@@ -51,35 +56,46 @@ Example CI step (optional; default workflow leaves the agent off):
 ```yaml
 - name: Configure SDK path and optional New Relic
   env:
-    NEW_RELIC_TOKEN: ${{ secrets.NEW_RELIC_TOKEN }}
+    NEW_RELIC_APPLICATION_TOKEN: ${{ secrets.NEW_RELIC_APPLICATION_TOKEN }}
     NEW_RELIC_ENABLED: ${{ vars.NEW_RELIC_ENABLED }}
   run: |
     echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
-    # Agent stays off unless both are present (see app/build.gradle.kts).
+    # Agent stays off unless both are present (see root build.gradle.kts).
 ```
 
 Or export the env vars before `./scripts/ci.sh` / `./gradlew`.
 
 ## Disable without code changes
 
-Omit the keys, set `newrelic.enabled=false`, or leave `NEW_RELIC_ENABLED` unset.
+Omit the keys, set `newRelic.enabled=false`, or leave `NEW_RELIC_ENABLED` unset.
 Rebuild — `BuildConfig.NEW_RELIC_ENABLED` will be `false` and
 `NewRelicMonitoring.start` no-ops.
 
 ## What is reported
 
-When enabled, the agent uses New Relic Mobile defaults for:
+When enabled, `VocalApplication` starts the agent once with:
 
-- Crashes and ANRs
-- Handled exceptions (`NewRelicMonitoring.recordHandledException` / agent defaults)
-- App start and screen / interaction performance metrics
+- Crash / ANR / native / application-exit reporting
+- Handled exceptions
+- Analytics events + event persistence
+- App-start metrics, interaction tracing, Jetpack Compose instrumentation
+- Offline storage + background reporting (so data survives offline AAC use)
+- Network request metrics for agent harvest traffic
+
+Manual hooks (via domain `MonitoringRepository` / `NewRelicMonitoring`) also send
+privacy-safe breadcrumbs, custom `VocalApp` events, interactions, and metrics for:
+
+- Screen views (board / settings)
+- Board ready (phrase count only)
+- Speak phrase / speech errors (error codes only — never phrase text)
+- Phrase save / delete, theme changes, speech test
 
 ## Privacy (AAC content)
 
 **Do not** send phrase text, custom icon paths, recorded audio paths, or other
-AAC communication content as custom attributes or events. Use
-`NewRelicMonitoring.recordHandledException` only with non-content metadata
-(for example component names or error codes).
+AAC communication content as custom attributes or events. Use monitoring APIs
+only with non-content metadata (for example component names, error enum names,
+counts, theme preset names).
 
 ## ProGuard / R8
 
@@ -90,9 +106,10 @@ agent is not active for the build.
 ## Manual verification
 
 1. Enable with a real token (local or CI secrets).
-2. Install an instrumented APK; force a test crash or call
-   `NewRelicMonitoring.recordHandledException`.
-3. Confirm events in the New Relic Mobile dashboard.
+2. Install an instrumented APK; use the board and settings screens; force a test
+   crash or call `MonitoringRepository.recordHandledException`.
+3. Confirm `VocalApp` custom events, breadcrumbs, and interactions in the New
+   Relic Mobile dashboard (allow a few minutes; background the app to flush).
 4. Cold-start and confirm app-start / performance data.
 5. Rebuild with the agent disabled; confirm startup logs skip init and CI needs
    no token.

@@ -22,10 +22,27 @@ val localProperties = Properties().apply {
     }
 }
 
-fun configuredValue(propertyName: String, environmentName: String): String? =
-    providers.gradleProperty(propertyName).orNull
-        ?: providers.environmentVariable(environmentName).orNull
-        ?: localProperties.getProperty(propertyName)
+/**
+ * Resolves a config value with precedence: Gradle `-P` → environment → `local.properties`.
+ * Accepts multiple property / env aliases so docs and local setups stay compatible.
+ */
+fun configuredValue(
+    propertyNames: List<String>,
+    environmentNames: List<String>,
+): String? {
+    for (name in propertyNames) {
+        providers.gradleProperty(name).orNull?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+    }
+    for (name in environmentNames) {
+        providers.environmentVariable(name).orNull?.trim()?.takeIf { it.isNotEmpty() }?.let {
+            return it
+        }
+    }
+    for (name in propertyNames) {
+        localProperties.getProperty(name)?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+    }
+    return null
+}
 
 fun String?.asEnabledFlag(): Boolean =
     when (this?.trim()?.lowercase()) {
@@ -34,18 +51,23 @@ fun String?.asEnabledFlag(): Boolean =
     }
 
 val newRelicEnabled = configuredValue(
-    propertyName = "newRelic.enabled",
-    environmentName = "NEW_RELIC_ENABLED",
+    propertyNames = listOf("newRelic.enabled", "newrelic.enabled"),
+    environmentNames = listOf("NEW_RELIC_ENABLED"),
 ).asEnabledFlag()
 val newRelicApplicationToken = configuredValue(
-    propertyName = "newRelic.applicationToken",
-    environmentName = "NEW_RELIC_APPLICATION_TOKEN",
+    propertyNames = listOf(
+        "newRelic.applicationToken",
+        "newrelic.applicationToken",
+        "newrelic.token",
+    ),
+    environmentNames = listOf("NEW_RELIC_APPLICATION_TOKEN", "NEW_RELIC_TOKEN"),
 ).orEmpty()
 
 if (newRelicEnabled && newRelicApplicationToken.isBlank()) {
     throw GradleException(
-        "newRelic.enabled=true requires newRelic.applicationToken in local.properties, " +
-            "-PnewRelic.applicationToken=..., or NEW_RELIC_APPLICATION_TOKEN.",
+        "newRelic.enabled=true requires an application token via " +
+            "newRelic.applicationToken / newrelic.token in local.properties, " +
+            "-PnewRelic.applicationToken=..., or NEW_RELIC_APPLICATION_TOKEN / NEW_RELIC_TOKEN.",
     )
 }
 

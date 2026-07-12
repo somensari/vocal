@@ -45,7 +45,6 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitExt" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
-newrelic-android-agent = { group = "com.newrelic.agent.android", name = "android-agent", version.ref = "newrelic" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
