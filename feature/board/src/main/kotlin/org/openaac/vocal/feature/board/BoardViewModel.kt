@@ -2,6 +2,8 @@ package org.openaac.vocal.feature.board
 
 import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.Phrase
+import org.openaac.vocal.core.domain.monitoring.MonitoringEvents
+import org.openaac.vocal.core.domain.repository.MonitoringRepository
 import org.openaac.vocal.core.domain.usecase.EnsureDefaultBoardUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveBoardPhrasesUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveBoardUseCase
@@ -13,8 +15,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -31,6 +35,7 @@ class BoardViewModel @Inject constructor(
     observeBoardPhrasesUseCase: ObserveBoardPhrasesUseCase,
     private val ensureDefaultBoardUseCase: EnsureDefaultBoardUseCase,
     private val speakPhraseUseCase: SpeakPhraseUseCase,
+    private val monitoringRepository: MonitoringRepository,
 ) : ViewModel() {
 
     private val activeBoardId = MutableStateFlow<Long?>(null)
@@ -58,14 +63,83 @@ class BoardViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val board = ensureDefaultBoardUseCase()
-            activeBoardId.value = board.id
+            val interactionId =
+                monitoringRepository.startInteraction(MonitoringEvents.Interaction.EnsureDefaultBoard)
+            try {
+                val board = ensureDefaultBoardUseCase()
+                activeBoardId.value = board.id
+                monitoringRepository.recordCustomEvent(
+                    eventName = MonitoringEvents.Name.DefaultBoardEnsured,
+                    attributes = mapOf(MonitoringEvents.Attr.Success to true),
+                )
+            } catch (t: Throwable) {
+                monitoringRepository.recordHandledException(
+                    throwable = t,
+                    attributes = mapOf(
+                        MonitoringEvents.Attr.Component to "BoardViewModel.ensureDefaultBoard",
+                    ),
+                )
+            } finally {
+                monitoringRepository.endInteraction(interactionId)
+            }
+        }
+
+        viewModelScope.launch {
+            uiState
+                .map { state ->
+                    if (state.isLoading) null else state.phrases.size
+                }
+                .distinctUntilChanged()
+                .collect { phraseCount ->
+                    if (phraseCount == null) return@collect
+                    monitoringRepository.recordCustomEvent(
+                        eventName = MonitoringEvents.Name.BoardReady,
+                        attributes = mapOf(
+                            MonitoringEvents.Attr.PhraseCount to phraseCount.toDouble(),
+                        ),
+                    )
+                    monitoringRepository.setSessionAttribute(
+                        "vocal.phrase_count",
+                        phraseCount.toDouble(),
+                    )
+                    monitoringRepository.recordBreadcrumb(
+                        name = "board_ready",
+                        attributes = mapOf(
+                            MonitoringEvents.Attr.PhraseCount to phraseCount.toDouble(),
+                        ),
+                    )
+                }
         }
     }
 
     fun onPhraseSelected(phrase: Phrase) {
         viewModelScope.launch {
-            speakPhraseUseCase(phrase)
+            val interactionId =
+                monitoringRepository.startInteraction(MonitoringEvents.Interaction.SpeakPhrase)
+            try {
+                val error = speakPhraseUseCase(phrase)
+                monitoringRepository.incrementSessionAttribute("vocal.speak_count")
+                monitoringRepository.recordCustomEvent(
+                    eventName = MonitoringEvents.Name.SpeakPhrase,
+                    attributes = mapOf(
+                        MonitoringEvents.Attr.HasRecordedAudio to !phrase.audioPath.isNullOrBlank(),
+                        MonitoringEvents.Attr.Success to (error == null),
+                    ),
+                )
+                monitoringRepository.recordMetric(
+                    name = "SpeakPhrase",
+                    category = "Board",
+                )
+            } catch (t: Throwable) {
+                monitoringRepository.recordHandledException(
+                    throwable = t,
+                    attributes = mapOf(
+                        MonitoringEvents.Attr.Component to "BoardViewModel.onPhraseSelected",
+                    ),
+                )
+            } finally {
+                monitoringRepository.endInteraction(interactionId)
+            }
         }
     }
 }

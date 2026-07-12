@@ -30,10 +30,40 @@ interface SpeechRepository {
 }
 
 /**
- * Records diagnostic failures without attaching AAC communication content.
+ * Maintainer telemetry without attaching AAC communication content.
+ *
+ * Implementations may no-op when New Relic (or another backend) is disabled
+ * for the build. Callers must never pass phrase text, icon paths, or audio paths.
  */
 interface MonitoringRepository {
-    fun recordHandledException(throwable: Throwable)
+    fun recordHandledException(
+        throwable: Throwable,
+        attributes: Map<String, Any> = emptyMap(),
+    )
+
+    fun recordBreadcrumb(
+        name: String,
+        attributes: Map<String, Any> = emptyMap(),
+    )
+
+    fun recordCustomEvent(
+        eventName: String,
+        attributes: Map<String, Any> = emptyMap(),
+    )
+
+    fun startInteraction(name: String): String?
+
+    fun endInteraction(interactionId: String?)
+
+    fun setSessionAttribute(name: String, value: String)
+
+    fun setSessionAttribute(name: String, value: Double)
+
+    fun setSessionAttribute(name: String, value: Boolean)
+
+    fun recordMetric(name: String, category: String, value: Double = 1.0)
+
+    fun incrementSessionAttribute(name: String)
 }
 
 interface UserPreferencesRepository {

@@ -5,6 +5,8 @@ import android.media.MediaPlayer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
+import org.openaac.vocal.core.domain.monitoring.MonitoringEvents
+import org.openaac.vocal.core.domain.repository.MonitoringRepository
 import org.openaac.vocal.core.domain.repository.SpeechError
 import org.openaac.vocal.core.domain.repository.SpeechRepository
 import org.openaac.vocal.core.domain.repository.UserPreferencesRepository
@@ -23,6 +25,7 @@ import kotlin.coroutines.resume
 class SpeechRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val userPreferencesRepository: UserPreferencesRepository,
+    private val monitoringRepository: MonitoringRepository,
 ) : SpeechRepository {
 
     private var textToSpeech: TextToSpeech? = null
@@ -62,6 +65,9 @@ class SpeechRepositoryImpl @Inject constructor(
                             -> {
                                 Log.w(TAG, "TTS language unavailable: $languageResult")
                                 isTtsReady = false
+                                monitoringRepository.recordBreadcrumb(
+                                    name = "tts_language_unsupported",
+                                )
                                 if (continuation.isActive) {
                                     continuation.resume(SpeechError.LanguageUnsupported)
                                 }
@@ -74,6 +80,10 @@ class SpeechRepositoryImpl @Inject constructor(
                     } else {
                         Log.e(TAG, "TTS init failed with status=$status")
                         isTtsReady = false
+                        monitoringRepository.recordBreadcrumb(
+                            name = "tts_init_failed",
+                            attributes = mapOf("status" to status.toDouble()),
+                        )
                         if (continuation.isActive) {
                             continuation.resume(SpeechError.TtsUnavailable)
                         }
@@ -87,7 +97,10 @@ class SpeechRepositoryImpl @Inject constructor(
         if (!audioPath.isNullOrBlank()) {
             val played = playRecordedAudio(audioPath)
             if (played) return null
-            Log.w(TAG, "Recorded audio failed, falling back to TTS: $audioPath")
+            Log.w(TAG, "Recorded audio failed, falling back to TTS")
+            monitoringRepository.recordBreadcrumb(
+                name = "recorded_audio_fallback_tts",
+            )
         }
         return speakWithTts(text)
     }
@@ -106,11 +119,11 @@ class SpeechRepositoryImpl @Inject constructor(
             tts.setSpeechRate(rate)
             when (val result = tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, UTTERANCE_ID)) {
                 TextToSpeech.SUCCESS -> {
-                    Log.d(TAG, "speak() queued: \"$text\"")
+                    Log.d(TAG, "speak() queued")
                     null
                 }
                 else -> {
-                    Log.e(TAG, "speak() failed with result=$result for \"$text\"")
+                    Log.e(TAG, "speak() failed with result=$result")
                     SpeechError.SpeakFailed
                 }
             }
@@ -144,7 +157,13 @@ class SpeechRepositoryImpl @Inject constructor(
                         player.prepare()
                         player.start()
                     } catch (e: Exception) {
-                        Log.w(TAG, "MediaPlayer failed for $audioPath", e)
+                        Log.w(TAG, "MediaPlayer failed for recorded audio", e)
+                        monitoringRepository.recordHandledException(
+                            throwable = e,
+                            attributes = mapOf(
+                                MonitoringEvents.Attr.Component to "SpeechRepositoryImpl.playRecordedAudio",
+                            ),
+                        )
                         player.release()
                         if (continuation.isActive) continuation.resume(false)
                     }

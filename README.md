@@ -87,16 +87,13 @@ NEW_RELIC_ENABLED=true NEW_RELIC_APPLICATION_TOKEN=YOUR_TOKEN ./gradlew :app:ass
 ```
 
 When enabled, the New Relic Gradle plugin instruments every Android module
-(`app`, `core/data`, `core/ui`, and `feature/*`) and `MainActivity` starts the
-agent silently. When disabled, the plugin is not applied and no token is needed.
-Handled exceptions can be reported through the domain `MonitoringRepository`;
-do not add phrase text, custom icon paths, recorded audio paths, or other AAC
-communication content as New Relic custom attributes/events.
-### New Relic monitoring (optional)
-
-Maintainers can enable silent crash / performance telemetry via New Relic Mobile.
-The agent is **off by default** and needs a token from `local.properties` or CI
-secrets — never commit tokens. See [docs/new-relic.md](docs/new-relic.md).
+(`app`, `core/data`, `core/ui`, and `feature/*`) and `VocalApplication` starts
+the agent silently with Compose (Jetpack), offline storage, and background
+reporting. Domain `MonitoringRepository` hooks record privacy-safe breadcrumbs,
+custom events, and interactions from board/settings/speech flows. When disabled,
+the plugin is not applied and no token is needed. Do not add phrase text, custom
+icon paths, recorded audio paths, or other AAC communication content as New Relic
+custom attributes/events. See [docs/new-relic.md](docs/new-relic.md).
 
 ### Troubleshooting builds
 
