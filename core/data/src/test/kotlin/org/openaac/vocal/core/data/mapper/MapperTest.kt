@@ -1,0 +1,58 @@
+package org.openaac.vocal.core.data.mapper
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+import org.openaac.vocal.core.data.local.entity.BoardEntity
+import org.openaac.vocal.core.data.local.entity.PhraseEntity
+import org.openaac.vocal.core.domain.model.Board
+import org.openaac.vocal.core.domain.model.Phrase
+
+class MapperTest {
+
+    @Test
+    fun boardEntity_roundTripsToDomain() {
+        val entity = BoardEntity(id = 1, name = "Home", rows = 4, columns = 4, isDefault = true)
+        val domain = entity.toDomain()
+        assertEquals(Board(id = 1, name = "Home", rows = 4, columns = 4), domain)
+        assertEquals(entity, domain.toEntity(isDefault = true))
+    }
+
+    @Test
+    fun board_toEntity_preservesIsDefaultFlag() {
+        val board = Board(id = 2, name = "Alt", rows = 2, columns = 2)
+        assertEquals(false, board.toEntity(isDefault = false).isDefault)
+        assertEquals(true, board.toEntity(isDefault = true).isDefault)
+    }
+
+    @Test
+    fun phraseEntity_roundTripsOptionalFields() {
+        val entity = PhraseEntity(
+            id = 10,
+            boardId = 1,
+            label = "Water",
+            spokenText = "I want water",
+            row = 0,
+            column = 1,
+            iconPath = "vocal://bundled-icons/starter/water",
+            audioPath = "/data/user/0/org.openaac.vocal/files/water.m4a",
+        )
+        val domain = entity.toDomain()
+        assertEquals(entity, domain.toEntity())
+    }
+
+    @Test
+    fun phraseEntity_nullOptionalsMapToNull() {
+        val entity = PhraseEntity(
+            id = 0,
+            boardId = 1,
+            label = "Yes",
+            spokenText = "Yes",
+            row = 0,
+            column = 0,
+        )
+        val domain = entity.toDomain()
+        assertNull(domain.iconPath)
+        assertNull(domain.audioPath)
+    }
+}
