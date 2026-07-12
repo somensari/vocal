@@ -7,6 +7,7 @@ import org.openaac.vocal.core.domain.model.SavePhraseWithSymbolResult
 import org.openaac.vocal.core.domain.model.SymbolCacheMaxSizeMb
 import org.openaac.vocal.core.domain.model.SymbolCacheUsage
 import org.openaac.vocal.core.domain.usecase.CleanSymbolCacheUseCase
+import org.openaac.vocal.core.domain.monitoring.MonitoringEvents
 import org.openaac.vocal.core.domain.usecase.DeletePhraseUseCase
 import org.openaac.vocal.core.domain.usecase.EnsureDefaultBoardUseCase
 import org.openaac.vocal.core.domain.usecase.GetSymbolCacheUsageUseCase
@@ -16,6 +17,7 @@ import org.openaac.vocal.core.domain.usecase.ObserveSymbolCacheMaxSizeUseCase
 import org.openaac.vocal.core.domain.usecase.SavePhraseWithSymbolUseCase
 import org.openaac.vocal.core.domain.usecase.SetBoardThemePresetUseCase
 import org.openaac.vocal.core.domain.usecase.SetSymbolCacheMaxSizeUseCase
+import org.openaac.vocal.core.domain.repository.MonitoringRepository
 import org.openaac.vocal.core.domain.repository.SpeechRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -74,6 +76,7 @@ class SettingsViewModel @Inject constructor(
     private val getSymbolCacheUsageUseCase: GetSymbolCacheUsageUseCase,
     private val cleanSymbolCacheUseCase: CleanSymbolCacheUseCase,
     private val speechRepository: SpeechRepository,
+    private val monitoringRepository: MonitoringRepository,
 ) : ViewModel() {
 
     private val _editor = MutableStateFlow<PhraseEditorState?>(null)
@@ -250,14 +253,38 @@ class SettingsViewModel @Inject constructor(
 
     fun testSpeech() {
         viewModelScope.launch {
-            val error = speechRepository.speak(
-                text = TEST_SPEECH_PHRASE,
-                audioPath = null,
-            )
-            _message.value = if (error == null) {
-                SettingsMessage.SpeechTestOk
-            } else {
-                SettingsMessage.SpeechTestFailed
+            val interactionId =
+                monitoringRepository.startInteraction(MonitoringEvents.Interaction.TestSpeech)
+            try {
+                val error = speechRepository.speak(
+                    text = TEST_SPEECH_PHRASE,
+                    audioPath = null,
+                )
+                val success = error == null
+                _message.value = if (success) {
+                    SettingsMessage.SpeechTestOk
+                } else {
+                    SettingsMessage.SpeechTestFailed
+                }
+                monitoringRepository.recordCustomEvent(
+                    eventName = MonitoringEvents.Name.SpeechTest,
+                    attributes = buildMap {
+                        put(MonitoringEvents.Attr.Success, success)
+                        if (error != null) {
+                            put(MonitoringEvents.Attr.Error, error.name)
+                        }
+                    },
+                )
+            } catch (t: Throwable) {
+                _message.value = SettingsMessage.SpeechTestFailed
+                monitoringRepository.recordHandledException(
+                    throwable = t,
+                    attributes = mapOf(
+                        MonitoringEvents.Attr.Component to "SettingsViewModel.testSpeech",
+                    ),
+                )
+            } finally {
+                monitoringRepository.endInteraction(interactionId)
             }
         }
     }

@@ -8,7 +8,7 @@ Be respectful and patient. Many contributors and users live with disabilities or
 
 ## How to contribute
 
-1. Check existing issues or open one to discuss larger changes.
+1. Check existing issues or open a [Feature request](.github/ISSUE_TEMPLATE/feature_request.yml) (or use `/feature-request` in Cursor) to discuss larger changes.
 2. Fork the repository and create a feature branch.
 3. Keep changes focused and small when possible.
 4. Match existing architecture: MVVM + Repository, multi-module layout.
@@ -33,9 +33,10 @@ Pull requests to `main` run [Android CI](.github/workflows/android-ci.yml) autom
 
 Crash and performance reporting uses New Relic Mobile when enabled at build time.
 Default builds leave it off (no token required). To instrument a build, set
-`newrelic.enabled=true` and `newrelic.token=…` in git-ignored `local.properties`,
-or use CI secrets `NEW_RELIC_ENABLED` / `NEW_RELIC_TOKEN`. Never commit tokens.
-Details: [docs/new-relic.md](docs/new-relic.md).
+`newRelic.enabled=true` and `newRelic.applicationToken=…` in git-ignored
+`local.properties` (aliases: `newrelic.enabled` / `newrelic.token`), or use CI
+secrets `NEW_RELIC_ENABLED` and `NEW_RELIC_APPLICATION_TOKEN` (or `NEW_RELIC_TOKEN`).
+Never commit tokens. Details: [docs/new-relic.md](docs/new-relic.md).
 
 ## Pull request checklist
 
@@ -60,6 +61,7 @@ Type `/` in Cursor Agent chat:
 | Command | When to use |
 |---------|-------------|
 | `/onboard` | New to the repo — architecture, modules, CI, accessibility overview |
+| `/feature-request` | Product Managers — interview, draft, and file a GitHub Feature Request |
 | `/feature-board` | Implement or extend the communication board (`feature/board`) |
 | `/a11y-check` | Before a PR that touches UI — review diff for AAC accessibility |
 | `/pr-ready` | Before opening a PR — run CI, summarize diff, draft PR description |
@@ -75,6 +77,13 @@ Use this if you do not use Cursor, or as a reference for what each command does:
 1. Read [README.md](README.md), this file, and [AGENTS.md](AGENTS.md) (human quickstart section).
 2. Skim module layout: `app`, `core/domain`, `core/data`, `core/ui`, `feature/board`, `feature/settings`.
 3. Run `./scripts/ci.sh` once to confirm your environment.
+
+**Feature requests (equivalent to `/feature-request`)**
+
+1. Prefer the [Feature request](.github/ISSUE_TEMPLATE/feature_request.yml) GitHub form, or draft in Cursor with `/feature-request`.
+2. Fill every required section (problem, solution, acceptance criteria, out of scope, audience, surface, UI/data/offline impact, agent brief).
+3. Include an **Agent implementation brief** so an implementer can start from the issue alone.
+4. Label is `enhancement`. Do not start coding until the request is filed and prioritized.
 
 **Board feature work (equivalent to `/feature-board`)**
 

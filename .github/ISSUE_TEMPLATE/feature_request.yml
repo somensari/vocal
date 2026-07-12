@@ -1,0 +1,173 @@
+name: Feature request
+description: Propose new functionality for Vocal (AAC board / caregiver settings). Prefer drafting with /feature-request in Cursor.
+title: "[FR] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing a feature. Fill every required section so an agent or contributor can implement from this issue alone.
+
+        **Cursor users:** run `/feature-request` in Agent chat — it asks these questions and can file the issue for you.
+
+        Constraints to keep in mind: offline-first (no network in v1 user flows), calm board (caregiver CRUD stays in settings), AAC accessibility (TalkBack, large touch targets), strings in `strings.xml`.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / user need
+      description: Who is affected (AAC user and/or caregiver) and what pain or gap exists today?
+      placeholder: "As a caregiver, I cannot… / As an AAC user, I need…"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What should the product do? Describe user-visible behavior, not code design.
+      placeholder: "When the user…, the app should…"
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      description: Checklist an implementer can verify. Prefer observable outcomes.
+      placeholder: |
+        - [ ] …
+        - [ ] …
+        - [ ] TalkBack announces …
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: Explicit non-goals for this request (keeps the first PR small).
+      placeholder: "- Cloud sync\n- Redesigning the whole settings screen"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Primary audience
+      options:
+        - AAC end user (communication board)
+        - Caregiver
+        - Both
+    validations:
+      required: true
+
+  - type: dropdown
+    id: primary_surface
+    attributes:
+      label: Primary surface
+      options:
+        - Board (`feature/board`)
+        - Settings (`feature/settings`)
+        - Both board and settings
+        - Shared UI / theme (`core/ui`)
+        - Speech / TTS behavior
+        - Navigation / app shell (`app`)
+        - Other / unclear
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ui_impact
+    attributes:
+      label: UI impact
+      description: If Yes, TalkBack / tablet testing will be required.
+      options:
+        - "Yes — Compose / layout changes"
+        - "No — logic, data, or docs only"
+        - Unsure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: data_impact
+    attributes:
+      label: Data / persistence impact
+      options:
+        - None
+        - Room (phrases / structured data)
+        - DataStore (preferences)
+        - Local files (icons / audio)
+        - Multiple of the above
+        - Unsure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: offline
+    attributes:
+      label: Offline / network
+      description: Vocal v1 is offline-first. Choose Network only for an explicitly approved cloud feature.
+      options:
+        - Must remain offline (no network)
+        - Explicitly requests a cloud / network feature
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: modules
+    attributes:
+      label: Suggested modules
+      description: Best guess is fine; leave unchecked if unknown.
+      options:
+        - label: "`feature/board`"
+        - label: "`feature/settings`"
+        - label: "`core/domain` (use cases / models)"
+        - label: "`core/data` (Room / DataStore / repos)"
+        - label: "`core/ui` (shared Compose)"
+        - label: "`app` (navigation / Hilt)"
+        - label: "Unknown — implementer should propose"
+
+  - type: textarea
+    id: agent_brief
+    attributes:
+      label: Agent implementation brief
+      description: |
+        Enough for an agent to start without another discovery round. Include starting command hints, hard constraints, key files if known, and a short manual test outline.
+      placeholder: |
+        Starting hint: /feature-board (or settings work in feature/settings)
+
+        Constraints:
+        - Offline-only; strings in strings.xml
+        - Calm board — no caregiver CRUD on main grid
+        - Speak via SpeakPhraseUseCase; use AacCellButton for cells
+
+        Likely files: …
+
+        Manual test:
+        1. Install debug APK on tablet emulator
+        2. …
+        3. TalkBack: …
+    validations:
+      required: true
+
+  - type: dropdown
+    id: size
+    attributes:
+      label: Size (estimate)
+      options:
+        - S — small / localized
+        - M — a few modules or moderate UI
+        - L — cross-cutting or schema change
+        - Unsure
+    validations:
+      required: false
+
+  - type: textarea
+    id: related
+    attributes:
+      label: Related links
+      description: Related issues, screenshots, or references (optional).
+      placeholder: "Fixes overlap with #12\nScreenshot: …"
+    validations:
+      required: false

@@ -1,7 +1,8 @@
 package org.openaac.vocal
 
-import com.newrelic.agent.android.NewRelic
 import org.openaac.vocal.core.domain.model.BoardThemePreset
+import org.openaac.vocal.core.domain.monitoring.MonitoringEvents
+import org.openaac.vocal.core.domain.repository.MonitoringRepository
 import org.openaac.vocal.core.domain.repository.UserPreferencesRepository
 import org.openaac.vocal.core.ui.theme.VocalTheme
 import org.openaac.vocal.feature.board.BoardRoute
@@ -16,6 +17,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -29,7 +31,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -37,8 +38,10 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var userPreferencesRepository: UserPreferencesRepository
 
+    @Inject
+    lateinit var monitoringRepository: MonitoringRepository
+
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
-        startNewRelicMonitoring()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -47,24 +50,9 @@ class MainActivity : ComponentActivity() {
             )
 
             VocalTheme(boardThemePreset = boardThemePreset) {
-                VocalApp()
+                VocalApp(monitoringRepository = monitoringRepository)
             }
         }
-    }
-
-    private fun startNewRelicMonitoring() {
-        val applicationToken = BuildConfig.NEW_RELIC_APPLICATION_TOKEN
-        if (!BuildConfig.NEW_RELIC_ENABLED || applicationToken.isBlank()) {
-            return
-        }
-
-        if (newRelicStarted.compareAndSet(false, true)) {
-            NewRelic.withApplicationToken(applicationToken).start(applicationContext)
-        }
-    }
-
-    private companion object {
-        val newRelicStarted = AtomicBoolean(false)
     }
 }
 
@@ -74,10 +62,28 @@ private object VocalDestination {
 }
 
 @Composable
-private fun VocalApp() {
+private fun VocalApp(monitoringRepository: MonitoringRepository) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val currentRoute = currentDestination?.route
+
+    LaunchedEffect(currentRoute) {
+        val screen = when (currentRoute) {
+            VocalDestination.Board -> MonitoringEvents.Screen.Board
+            VocalDestination.Settings -> MonitoringEvents.Screen.Settings
+            else -> return@LaunchedEffect
+        }
+        monitoringRepository.recordBreadcrumb(
+            name = "screen_view",
+            attributes = mapOf(MonitoringEvents.Attr.Screen to screen),
+        )
+        monitoringRepository.recordCustomEvent(
+            eventName = MonitoringEvents.Name.ScreenView,
+            attributes = mapOf(MonitoringEvents.Attr.Screen to screen),
+        )
+        monitoringRepository.setSessionAttribute("vocal.current_screen", screen)
+    }
 
     Scaffold(
         bottomBar = {
