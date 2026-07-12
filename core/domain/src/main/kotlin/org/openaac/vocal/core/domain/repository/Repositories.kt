@@ -29,6 +29,13 @@ interface SpeechRepository {
     suspend fun speak(text: String, audioPath: String?): SpeechError?
 }
 
+/**
+ * Records diagnostic failures without attaching AAC communication content.
+ */
+interface MonitoringRepository {
+    fun recordHandledException(throwable: Throwable)
+}
+
 interface UserPreferencesRepository {
     val speechRate: Flow<Float>
     val boardThemePreset: Flow<BoardThemePreset>
