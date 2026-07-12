@@ -1,5 +1,6 @@
 package org.openaac.vocal
 
+import com.newrelic.agent.android.NewRelic
 import org.openaac.vocal.core.domain.model.BoardThemePreset
 import org.openaac.vocal.core.domain.repository.UserPreferencesRepository
 import org.openaac.vocal.core.ui.theme.VocalTheme
@@ -28,6 +29,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -36,6 +38,7 @@ class MainActivity : ComponentActivity() {
     lateinit var userPreferencesRepository: UserPreferencesRepository
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        startNewRelicMonitoring()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -47,6 +50,21 @@ class MainActivity : ComponentActivity() {
                 VocalApp()
             }
         }
+    }
+
+    private fun startNewRelicMonitoring() {
+        val applicationToken = BuildConfig.NEW_RELIC_APPLICATION_TOKEN
+        if (!BuildConfig.NEW_RELIC_ENABLED || applicationToken.isBlank()) {
+            return
+        }
+
+        if (newRelicStarted.compareAndSet(false, true)) {
+            NewRelic.withApplicationToken(applicationToken).start(applicationContext)
+        }
+    }
+
+    private companion object {
+        val newRelicStarted = AtomicBoolean(false)
     }
 }
 
