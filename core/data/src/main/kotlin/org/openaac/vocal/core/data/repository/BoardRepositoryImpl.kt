@@ -62,4 +62,6 @@ class PhraseRepositoryImpl @Inject constructor(
     override suspend fun deletePhrase(id: Long) {
         phraseDao.deleteById(id)
     }
+
+    override suspend fun getAllIconPaths(): List<String> = phraseDao.getAllIconPaths()
 }

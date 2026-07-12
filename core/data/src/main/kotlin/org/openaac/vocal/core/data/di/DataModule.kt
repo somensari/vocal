@@ -9,9 +9,11 @@ import org.openaac.vocal.core.data.repository.BoardRepositoryImpl
 import org.openaac.vocal.core.data.repository.PhraseRepositoryImpl
 import org.openaac.vocal.core.data.preferences.UserPreferencesRepositoryImpl
 import org.openaac.vocal.core.data.speech.SpeechRepositoryImpl
+import org.openaac.vocal.core.data.symbol.SymbolCacheRepositoryImpl
 import org.openaac.vocal.core.domain.repository.BoardRepository
 import org.openaac.vocal.core.domain.repository.PhraseRepository
 import org.openaac.vocal.core.domain.repository.SpeechRepository
+import org.openaac.vocal.core.domain.repository.SymbolCacheRepository
 import org.openaac.vocal.core.domain.repository.UserPreferencesRepository
 import dagger.Binds
 import dagger.Module
@@ -64,4 +66,10 @@ abstract class RepositoryModule {
     abstract fun bindUserPreferencesRepository(
         impl: UserPreferencesRepositoryImpl,
     ): UserPreferencesRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSymbolCacheRepository(
+        impl: SymbolCacheRepositoryImpl,
+    ): SymbolCacheRepository
 }

@@ -60,4 +60,7 @@ interface PhraseDao {
 
     @Query("DELETE FROM phrases WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("SELECT iconPath FROM phrases WHERE iconPath IS NOT NULL")
+    suspend fun getAllIconPaths(): List<String>
 }

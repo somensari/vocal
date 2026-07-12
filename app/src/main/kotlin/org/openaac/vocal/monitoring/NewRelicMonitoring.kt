@@ -28,7 +28,7 @@ object NewRelicMonitoring {
             return
         }
 
-        val token = BuildConfig.NEW_RELIC_TOKEN
+        val token = BuildConfig.NEW_RELIC_APPLICATION_TOKEN
         if (token.isBlank()) {
             Log.w(Tag, "New Relic enabled but token is blank; skipping start")
             return

@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,7 @@ fun BoardRoute(
     BoardScreen(
         uiState = uiState,
         onPhraseSelected = viewModel::onPhraseSelected,
+        resolveCachedIconFilePath = viewModel::resolveCachedIconFilePath,
         modifier = modifier,
     )
 }
@@ -52,6 +54,7 @@ fun BoardScreen(
     uiState: BoardUiState,
     onPhraseSelected: (Phrase) -> Unit,
     modifier: Modifier = Modifier,
+    resolveCachedIconFilePath: (String?) -> String? = { null },
 ) {
     Column(
         modifier = modifier
@@ -87,6 +90,7 @@ fun BoardScreen(
                 BoardPhraseGrid(
                     phrases = uiState.phrases,
                     onPhraseSelected = onPhraseSelected,
+                    resolveCachedIconFilePath = resolveCachedIconFilePath,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),
@@ -100,6 +104,7 @@ fun BoardScreen(
 private fun BoardPhraseGrid(
     phrases: List<Phrase>,
     onPhraseSelected: (Phrase) -> Unit,
+    resolveCachedIconFilePath: (String?) -> String?,
     modifier: Modifier = Modifier,
 ) {
     val gridColors = boardColors()
@@ -132,11 +137,10 @@ private fun BoardPhraseGrid(
                                 .background(gridColors.boardGridBackground),
                         )
                     } else {
-                        AacCellButton(
-                            label = phrase.label,
-                            contentDescription = phrase.spokenText,
-                            iconResId = bundledPhraseIconResId(phrase.iconPath),
-                            onClick = { onPhraseSelected(phrase) },
+                        PhraseBoardCell(
+                            phrase = phrase,
+                            onPhraseSelected = onPhraseSelected,
+                            resolveCachedIconFilePath = resolveCachedIconFilePath,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
@@ -146,6 +150,39 @@ private fun BoardPhraseGrid(
             }
         }
     }
+}
+
+@Composable
+private fun PhraseBoardCell(
+    phrase: Phrase,
+    onPhraseSelected: (Phrase) -> Unit,
+    resolveCachedIconFilePath: (String?) -> String?,
+    modifier: Modifier = Modifier,
+) {
+    val bundledResId = bundledPhraseIconResId(phrase.iconPath)
+    val cachedBitmap = remember(phrase.iconPath) {
+        if (bundledResId != null) {
+            null
+        } else {
+            resolveCachedIconFilePath(phrase.iconPath)
+                ?.let { path -> android.graphics.BitmapFactory.decodeFile(path) }
+                ?.asImageBitmap()
+        }
+    }
+    val iconResId = when {
+        bundledResId != null -> bundledResId
+        cachedBitmap != null -> null
+        else -> placeholderPhraseIconResId()
+    }
+
+    AacCellButton(
+        label = phrase.label,
+        contentDescription = phrase.spokenText,
+        iconResId = iconResId,
+        iconBitmap = cachedBitmap,
+        onClick = { onPhraseSelected(phrase) },
+        modifier = modifier,
+    )
 }
 
 @Preview(showBackground = true, widthDp = 800, heightDp = 500)

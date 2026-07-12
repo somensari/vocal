@@ -5,6 +5,7 @@ import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.domain.usecase.EnsureDefaultBoardUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveBoardPhrasesUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveBoardUseCase
+import org.openaac.vocal.core.domain.usecase.ResolveLocalSymbolFilePathUseCase
 import org.openaac.vocal.core.domain.usecase.SpeakPhraseUseCase
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -31,6 +32,7 @@ class BoardViewModel @Inject constructor(
     observeBoardPhrasesUseCase: ObserveBoardPhrasesUseCase,
     private val ensureDefaultBoardUseCase: EnsureDefaultBoardUseCase,
     private val speakPhraseUseCase: SpeakPhraseUseCase,
+    private val resolveLocalSymbolFilePathUseCase: ResolveLocalSymbolFilePathUseCase,
 ) : ViewModel() {
 
     private val activeBoardId = MutableStateFlow<Long?>(null)
@@ -68,4 +70,8 @@ class BoardViewModel @Inject constructor(
             speakPhraseUseCase(phrase)
         }
     }
+
+    /** Resolves a cached SymboTalk icon to a local filesystem path (offline board use). */
+    fun resolveCachedIconFilePath(iconPath: String?): String? =
+        resolveLocalSymbolFilePathUseCase(iconPath)
 }
