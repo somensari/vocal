@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.newrelic.android) apply false
     id("com.google.devtools.ksp") apply false
     id("com.google.dagger.hilt.android") apply false
 }

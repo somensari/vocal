@@ -29,6 +29,14 @@ Useful commands:
 
 Pull requests to `main` run [Android CI](.github/workflows/android-ci.yml) automatically.
 
+### New Relic (optional maintainer telemetry)
+
+Crash and performance reporting uses New Relic Mobile when enabled at build time.
+Default builds leave it off (no token required). To instrument a build, set
+`newrelic.enabled=true` and `newrelic.token=…` in git-ignored `local.properties`,
+or use CI secrets `NEW_RELIC_ENABLED` / `NEW_RELIC_TOKEN`. Never commit tokens.
+Details: [docs/new-relic.md](docs/new-relic.md).
+
 ## Pull request checklist
 
 - [ ] Builds locally

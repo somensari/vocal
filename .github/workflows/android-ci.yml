@@ -33,7 +33,16 @@ jobs:
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - name: Configure SDK path
+        # New Relic stays off unless NEW_RELIC_ENABLED=true and NEW_RELIC_TOKEN are
+        # supplied (repo secrets / env). Do not write tokens into committed files.
+        # See docs/new-relic.md.
         run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
+        env:
+          NEW_RELIC_ENABLED: ${{ vars.NEW_RELIC_ENABLED }}
+          NEW_RELIC_TOKEN: ${{ secrets.NEW_RELIC_TOKEN }}
 
       - name: Run CI checks
         run: ./scripts/ci.sh
+        env:
+          NEW_RELIC_ENABLED: ${{ vars.NEW_RELIC_ENABLED }}
+          NEW_RELIC_TOKEN: ${{ secrets.NEW_RELIC_TOKEN }}
