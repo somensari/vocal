@@ -92,6 +92,11 @@ agent silently. When disabled, the plugin is not applied and no token is needed.
 Handled exceptions can be reported through the domain `MonitoringRepository`;
 do not add phrase text, custom icon paths, recorded audio paths, or other AAC
 communication content as New Relic custom attributes/events.
+### New Relic monitoring (optional)
+
+Maintainers can enable silent crash / performance telemetry via New Relic Mobile.
+The agent is **off by default** and needs a token from `local.properties` or CI
+secrets — never commit tokens. See [docs/new-relic.md](docs/new-relic.md).
 
 ### Troubleshooting builds
 
