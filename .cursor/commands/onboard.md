@@ -54,7 +54,7 @@ Include all modules from `settings.gradle.kts`. State the dependency rule: `feat
 ### Cursor-specific aids
 
 - Project rules (always-on vs file-scoped)
-- Other slash commands when available: `/pr-ready`, `/a11y-check`, `/feature-board`
+- Other slash commands when available: `/feature-request`, `/pr-ready`, `/a11y-check`, `/feature-board`
 - `local/` is git-ignored — do not commit personal notes
 
 ### First tasks checklist
