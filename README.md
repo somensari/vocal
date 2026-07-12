@@ -66,6 +66,12 @@ Or use the CI script, which auto-selects Android Studio's JDK when needed:
 ./scripts/ci.sh
 ```
 
+### New Relic monitoring (optional)
+
+Maintainers can enable silent crash / performance telemetry via New Relic Mobile.
+The agent is **off by default** and needs a token from `local.properties` or CI
+secrets — never commit tokens. See [docs/new-relic.md](docs/new-relic.md).
+
 ### Troubleshooting builds
 
 **`KSP plugin was detected but its task class could not be found` / `ClassNotFoundException: KspTaskJvm`**
