@@ -59,6 +59,9 @@ interface MonitoringRepository {
 
     fun endInteraction(interactionId: String?)
 
+    /** Names the in-flight default interaction (used for Compose screen changes). */
+    fun setInteractionName(name: String)
+
     fun setSessionAttribute(name: String, value: String)
 
     fun setSessionAttribute(name: String, value: Double)

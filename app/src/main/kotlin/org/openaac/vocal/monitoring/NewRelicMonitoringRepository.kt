@@ -35,6 +35,10 @@ class NewRelicMonitoringRepository @Inject constructor() : MonitoringRepository 
         NewRelicMonitoring.endInteraction(interactionId)
     }
 
+    override fun setInteractionName(name: String) {
+        NewRelicMonitoring.setInteractionName(name)
+    }
+
     override fun setSessionAttribute(name: String, value: String) {
         NewRelicMonitoring.setSessionAttribute(name, value)
     }
