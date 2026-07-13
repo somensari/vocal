@@ -1,5 +1,6 @@
 package org.openaac.vocal.core.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,6 +21,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -37,6 +40,7 @@ import org.openaac.vocal.core.ui.theme.boardColors
 private val BoardCellCornerRadius = 4.dp
 private val LargeCellBreakpoint = 144.dp
 private val MediumCellBreakpoint = 96.dp
+private val CellIconSize = 40.dp
 
 @Composable
 fun AacCellButton(
@@ -45,6 +49,7 @@ fun AacCellButton(
     modifier: Modifier = Modifier,
     contentDescription: String = label,
     iconResId: Int? = null,
+    iconBitmap: ImageBitmap? = null,
 ) {
     val colors = boardColors()
     Surface(
@@ -65,14 +70,25 @@ fun AacCellButton(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                if (iconResId != null) {
-                    Icon(
-                        painter = painterResource(iconResId),
-                        contentDescription = null,
-                        tint = Color.Unspecified,
-                        modifier = Modifier.size(40.dp),
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
+                when {
+                    iconBitmap != null -> {
+                        Image(
+                            bitmap = iconBitmap,
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(CellIconSize),
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                    iconResId != null -> {
+                        Icon(
+                            painter = painterResource(iconResId),
+                            contentDescription = null,
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(CellIconSize),
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                 }
 
                 Text(

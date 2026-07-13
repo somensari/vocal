@@ -17,6 +17,7 @@
     <string name="settings_cancel">Cancel</string>
     <string name="settings_message_missing_required_fields">Label and spoken text are required.</string>
     <string name="settings_message_phrase_saved">Phrase saved.</string>
+    <string name="settings_message_phrase_saved_symbol_unavailable">Phrase saved. Symbol could not be downloaded; a placeholder icon will be shown on the board.</string>
     <string name="settings_message_phrase_deleted">Phrase deleted.</string>
     <string name="settings_message_phrase_limit_reached">This board can have at most 32 phrases. Remove a phrase or create a new board in the future.</string>
     <string name="settings_add_phrase_limit_reached">Cannot add phrase. Board limit of 32 phrases reached.</string>
@@ -29,4 +30,20 @@
     <string name="settings_speech_test_button">Test speech</string>
     <string name="settings_message_speech_test_ok">Speech test sent to the device TTS engine.</string>
     <string name="settings_message_speech_test_failed">Speech output is unavailable. Check device TTS settings or audio output.</string>
+
+    <string name="settings_symbol_cache_title">Symbol image cache</string>
+    <string name="settings_symbol_cache_description">Downloaded SymboTalk symbols are stored on this device for offline board use. Bundled starter icons do not count toward this limit.</string>
+    <string name="settings_symbol_cache_usage">Using about %1$d MB of %2$d MB</string>
+    <string name="settings_symbol_cache_max_title">Maximum cache size</string>
+    <string name="settings_symbol_cache_max_option">%1$d MB</string>
+    <string name="settings_symbol_cache_clean_button">Clean image cache</string>
+    <string name="settings_symbol_cache_clean_description">Removes downloaded symbols that are not used by any phrase. Icons still on the board are kept.</string>
+    <string name="settings_message_cache_cleaned">Unused downloaded symbols were removed.</string>
+    <string name="settings_cache_limit_dialog_title">Symbol cache is full</string>
+    <string name="settings_cache_limit_dialog_message">Downloading a new symbol would exceed the cache size limit. Clean unused images or raise the limit in settings, then try again. Already-cached symbols can still be reused.</string>
+    <string name="settings_cache_limit_dialog_dismiss">OK</string>
+    <string name="settings_saving_phrase">Saving phrase and matching symbol…</string>
+
+    <string name="settings_attribution_title">Symbol attribution</string>
+    <string name="settings_attribution_body">Board symbols may include artwork from SymboTalk and its symbol sets (including ARASAAC, Sclera, Mulberry, and Tawasol). Those symbols remain under their authors\' licenses (often Creative Commons). Vocal does not claim ownership of third-party symbol artwork.</string>
 </resources>

@@ -2,6 +2,8 @@ package org.openaac.vocal.feature.settings
 
 import org.openaac.vocal.core.domain.model.BoardThemePreset
 import org.openaac.vocal.core.domain.model.Phrase
+import org.openaac.vocal.core.domain.model.SymbolCacheMaxSizeMb
+import org.openaac.vocal.core.ui.accessibility.AacSecondaryTouchTarget
 import org.openaac.vocal.core.ui.components.AacSecondaryButton
 import org.openaac.vocal.core.ui.theme.VocalTheme
 import org.openaac.vocal.core.ui.theme.VocalThemePresets
@@ -22,6 +24,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -71,6 +74,9 @@ fun SettingsRoute(
         onEditorRowChange = viewModel::updateEditorRow,
         onEditorColumnChange = viewModel::updateEditorColumn,
         onBoardThemePresetSelected = viewModel::setBoardThemePreset,
+        onSymbolCacheMaxSizeSelected = viewModel::setSymbolCacheMaxSize,
+        onCleanImageCache = viewModel::cleanImageCache,
+        onDismissCacheLimitDialog = viewModel::dismissCacheLimitDialog,
         onTestSpeech = viewModel::testSpeech,
         onClearMessage = viewModel::clearMessage,
         modifier = modifier,
@@ -91,6 +97,9 @@ fun SettingsScreen(
     onEditorRowChange: (Int) -> Unit,
     onEditorColumnChange: (Int) -> Unit,
     onBoardThemePresetSelected: (BoardThemePreset) -> Unit,
+    onSymbolCacheMaxSizeSelected: (SymbolCacheMaxSizeMb) -> Unit,
+    onCleanImageCache: () -> Unit,
+    onDismissCacheLimitDialog: () -> Unit,
     onTestSpeech: () -> Unit,
     onClearMessage: () -> Unit,
     modifier: Modifier = Modifier,
@@ -101,10 +110,14 @@ fun SettingsScreen(
             stringResource(R.string.settings_message_missing_required_fields)
         }
         SettingsMessage.PhraseSaved -> stringResource(R.string.settings_message_phrase_saved)
+        SettingsMessage.PhraseSavedSymbolUnavailable -> {
+            stringResource(R.string.settings_message_phrase_saved_symbol_unavailable)
+        }
         SettingsMessage.PhraseDeleted -> stringResource(R.string.settings_message_phrase_deleted)
         SettingsMessage.PhraseLimitReached -> stringResource(R.string.settings_message_phrase_limit_reached)
         SettingsMessage.SpeechTestOk -> stringResource(R.string.settings_message_speech_test_ok)
         SettingsMessage.SpeechTestFailed -> stringResource(R.string.settings_message_speech_test_failed)
+        SettingsMessage.CacheCleaned -> stringResource(R.string.settings_message_cache_cleaned)
         null -> null
     }
 
@@ -162,6 +175,20 @@ fun SettingsScreen(
                 SpeechTestSection(onTestSpeech = onTestSpeech)
             }
 
+            item(key = "symbol-cache") {
+                SymbolCacheSection(
+                    selectedMaxSize = uiState.selectedSymbolCacheMaxSize,
+                    usedMegabytes = uiState.symbolCacheUsage.usedMegabytes,
+                    maxMegabytes = uiState.symbolCacheUsage.maxMegabytes,
+                    onMaxSizeSelected = onSymbolCacheMaxSizeSelected,
+                    onCleanImageCache = onCleanImageCache,
+                )
+            }
+
+            item(key = "attribution") {
+                AttributionSection()
+            }
+
             items(uiState.phrases, key = { it.id }) { phrase ->
                 PhraseListItem(
                     phrase = phrase,
@@ -175,6 +202,7 @@ fun SettingsScreen(
     uiState.editor?.let { editor ->
         PhraseEditorDialog(
             editor = editor,
+            isSaving = uiState.isSavingPhrase,
             onDismiss = onDismissEditor,
             onSave = onSaveEditor,
             onLabelChange = onEditorLabelChange,
@@ -182,6 +210,10 @@ fun SettingsScreen(
             onRowChange = onEditorRowChange,
             onColumnChange = onEditorColumnChange,
         )
+    }
+
+    if (uiState.showCacheLimitDialog) {
+        CacheLimitDialog(onDismiss = onDismissCacheLimitDialog)
     }
 }
 
@@ -234,6 +266,134 @@ private fun SpeechTestSection(
             )
         }
     }
+}
+
+@Composable
+private fun SymbolCacheSection(
+    selectedMaxSize: SymbolCacheMaxSizeMb,
+    usedMegabytes: Int,
+    maxMegabytes: Int,
+    onMaxSizeSelected: (SymbolCacheMaxSizeMb) -> Unit,
+    onCleanImageCache: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.settings_symbol_cache_title),
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Text(
+                text = stringResource(R.string.settings_symbol_cache_description),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                text = stringResource(
+                    R.string.settings_symbol_cache_usage,
+                    usedMegabytes,
+                    maxMegabytes,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = stringResource(R.string.settings_symbol_cache_max_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            SymbolCacheMaxSizeMb.entries.forEach { option ->
+                SymbolCacheMaxSizeOption(
+                    option = option,
+                    selected = option == selectedMaxSize,
+                    onClick = { onMaxSizeSelected(option) },
+                )
+            }
+            Text(
+                text = stringResource(R.string.settings_symbol_cache_clean_description),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            AacSecondaryButton(
+                label = stringResource(R.string.settings_symbol_cache_clean_button),
+                onClick = onCleanImageCache,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = AacSecondaryTouchTarget),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SymbolCacheMaxSizeOption(
+    option: SymbolCacheMaxSizeMb,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val label = stringResource(R.string.settings_symbol_cache_max_option, option.megabytes)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = AacSecondaryTouchTarget)
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                role = Role.RadioButton,
+            )
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = null,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun AttributionSection() {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.settings_attribution_title),
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Text(
+                text = stringResource(R.string.settings_attribution_body),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CacheLimitDialog(
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_cache_limit_dialog_title)) },
+        text = { Text(stringResource(R.string.settings_cache_limit_dialog_message)) },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.defaultMinSize(minHeight = AacSecondaryTouchTarget),
+            ) {
+                Text(stringResource(R.string.settings_cache_limit_dialog_dismiss))
+            }
+        },
+    )
 }
 
 @Composable
@@ -356,6 +516,7 @@ private fun PhraseListItem(
 @Composable
 private fun PhraseEditorDialog(
     editor: PhraseEditorState,
+    isSaving: Boolean,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
     onLabelChange: (String) -> Unit,
@@ -379,12 +540,14 @@ private fun PhraseEditorDialog(
                 OutlinedTextField(
                     value = editor.label,
                     onValueChange = onLabelChange,
+                    enabled = !isSaving,
                     label = { Text(stringResource(R.string.settings_field_label)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = editor.spokenText,
                     onValueChange = onSpokenTextChange,
+                    enabled = !isSaving,
                     label = { Text(stringResource(R.string.settings_field_spoken_text)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -393,6 +556,7 @@ private fun PhraseEditorDialog(
                     onValueChange = { value ->
                         onRowChange(value.toIntOrNull() ?: 0)
                     },
+                    enabled = !isSaving,
                     label = { Text(stringResource(R.string.settings_field_row)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
@@ -402,20 +566,42 @@ private fun PhraseEditorDialog(
                     onValueChange = { value ->
                         onColumnChange(value.toIntOrNull() ?: 0)
                     },
+                    enabled = !isSaving,
                     label = { Text(stringResource(R.string.settings_field_column)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (isSaving) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.defaultMinSize(
+                                minWidth = 24.dp,
+                                minHeight = 24.dp,
+                            ),
+                        )
+                        Text(text = stringResource(R.string.settings_saving_phrase))
+                    }
+                }
             }
         },
         confirmButton = {
-            AacSecondaryButton(
-                label = stringResource(R.string.settings_save),
-                onClick = onSave,
-            )
+            if (!isSaving) {
+                AacSecondaryButton(
+                    label = stringResource(R.string.settings_save),
+                    onClick = onSave,
+                    contentDescription = stringResource(R.string.settings_save),
+                )
+            }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isSaving,
+                modifier = Modifier.defaultMinSize(minHeight = AacSecondaryTouchTarget),
+            ) {
                 Text(stringResource(R.string.settings_cancel))
             }
         },
@@ -443,6 +629,9 @@ private fun SettingsScreenPreview() {
             onEditorRowChange = {},
             onEditorColumnChange = {},
             onBoardThemePresetSelected = {},
+            onSymbolCacheMaxSizeSelected = {},
+            onCleanImageCache = {},
+            onDismissCacheLimitDialog = {},
             onTestSpeech = {},
             onClearMessage = {},
         )
