@@ -1,11 +1,13 @@
 package org.openaac.vocal.monitoring
 
 import android.app.Application
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import com.newrelic.agent.android.FeatureFlag
 import com.newrelic.agent.android.NewRelic
+import com.newrelic.agent.android.logging.AgentLog
 import org.openaac.vocal.BuildConfig
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -14,6 +16,10 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * Enabled only when [BuildConfig.NEW_RELIC_ENABLED] is true (token + enable flag via
  * `local.properties` / CI secrets — never committed). No Compose or settings UI.
+ *
+ * **Startup (New Relic requirement):** call [start] on the **first line** of the launcher
+ * `MainActivity.onCreate()` (not from `Application`). Starting elsewhere breaks app-launch
+ * and interaction reporting even when custom events still appear.
  *
  * **Privacy:** Do not attach phrase text, custom icon paths, recorded audio paths, or
  * other AAC communication content as custom attributes or events.
@@ -26,8 +32,11 @@ object NewRelicMonitoring {
      * Starts the agent when instrumentation is enabled for this build.
      * Safe to call when disabled — no-ops without requiring a token.
      * Idempotent if invoked more than once.
+     *
+     * Must be invoked from the launcher Activity's `onCreate` (first line), passing
+     * `application` / `getApplication()` as required by New Relic Android docs.
      */
-    fun start(application: Application) {
+    fun start(context: Context) {
         if (!BuildConfig.NEW_RELIC_ENABLED) {
             Log.d(Tag, "New Relic agent disabled for this build")
             return
@@ -44,32 +53,36 @@ object NewRelicMonitoring {
             return
         }
 
+        val application = context.applicationContext as? Application
+            ?: run {
+                started.set(false)
+                Log.e(Tag, "New Relic start requires an Application context")
+                return
+            }
+
         val versionName = application.versionName()
         val versionCode = application.versionCode()
 
         try {
-            // Crash / ANR and handled exceptions
+            // Feature flags must be set before start().
             NewRelic.enableFeature(FeatureFlag.CrashReporting)
             NewRelic.enableFeature(FeatureFlag.HandledExceptions)
             NewRelic.enableFeature(FeatureFlag.NativeReporting)
             NewRelic.enableFeature(FeatureFlag.ApplicationExitReporting)
 
-            // Analytics, breadcrumbs, custom events
             NewRelic.enableFeature(FeatureFlag.AnalyticsEvents)
             NewRelic.enableFeature(FeatureFlag.EventPersistence)
 
-            // App start + interactions (Compose needs Jetpack)
+            // Launches + interactions (Compose needs Jetpack)
             NewRelic.enableFeature(FeatureFlag.AppStartMetrics)
             NewRelic.enableFeature(FeatureFlag.InteractionTracing)
             NewRelic.enableFeature(FeatureFlag.DefaultInteractions)
             NewRelic.enableFeature(FeatureFlag.Jetpack)
 
-            // Persist / harvest when the device is offline or the app is backgrounded —
-            // critical for an offline-first AAC app that rarely opens the network.
+            // Persist / harvest when offline or backgrounded (offline-first AAC app).
             NewRelic.enableFeature(FeatureFlag.OfflineStorage)
             NewRelic.enableFeature(FeatureFlag.BackgroundReporting)
 
-            // Agent harvest traffic (and any future cloud features)
             NewRelic.enableFeature(FeatureFlag.NetworkRequests)
             NewRelic.enableFeature(FeatureFlag.NetworkErrorRequests)
             NewRelic.disableFeature(FeatureFlag.HttpResponseBodyCapture)
@@ -78,8 +91,10 @@ object NewRelicMonitoring {
                 .withApplicationVersion(versionName)
                 .withApplicationBuild(versionCode.toString())
                 .withLaunchActivityName("MainActivity")
-                .withLoggingEnabled(BuildConfig.DEBUG)
+                .withLoggingEnabled(true)
+                .withLogLevel(if (BuildConfig.DEBUG) AgentLog.AUDIT else AgentLog.INFO)
                 .withCrashReportingEnabled(true)
+                // Pass Application from the launcher Activity (New Relic-supported pattern).
                 .start(application)
 
             // Harvest analytics more often (minimum allowed by the agent is 60s).
@@ -96,9 +111,10 @@ object NewRelicMonitoring {
                 mapOf(
                     "build_type" to BuildConfig.BUILD_TYPE,
                     "version_name" to versionName,
+                    "start_site" to "MainActivity",
                 ),
             )
-            Log.i(Tag, "New Relic agent started")
+            Log.i(Tag, "New Relic agent started from MainActivity")
         } catch (t: Throwable) {
             started.set(false)
             Log.e(Tag, "New Relic agent failed to start", t)
@@ -159,6 +175,15 @@ object NewRelicMonitoring {
     fun endInteraction(interactionId: String?) {
         if (!isEnabled() || interactionId.isNullOrBlank()) return
         NewRelic.endInteraction(interactionId)
+    }
+
+    /**
+     * Names the current default interaction (Activity/Compose frame). Prefer this for
+     * screen changes in a single-Activity Compose app so the Interactions UI populates.
+     */
+    fun setInteractionName(name: String) {
+        if (!isEnabled()) return
+        NewRelic.setInteractionName(name)
     }
 
     fun setSessionAttribute(name: String, value: String) {

@@ -73,7 +73,8 @@ Rebuild — `BuildConfig.NEW_RELIC_ENABLED` will be `false` and
 
 ## What is reported
 
-When enabled, `VocalApplication` starts the agent once with:
+When enabled, **`MainActivity.onCreate` starts the agent on its first line** (New Relic’s
+supported pattern — do **not** start from `Application`). Feature flags enable:
 
 - Crash / ANR / native / application-exit reporting
 - Handled exceptions
@@ -85,10 +86,18 @@ When enabled, `VocalApplication` starts the agent once with:
 Manual hooks (via domain `MonitoringRepository` / `NewRelicMonitoring`) also send
 privacy-safe breadcrumbs, custom `VocalApp` events, interactions, and metrics for:
 
-- Screen views (board / settings)
+- Screen views (board / settings), including `setInteractionName` for Compose routes
 - Board ready (phrase count only)
 - Speak phrase / speech errors (error codes only — never phrase text)
 - Phrase save / delete, theme changes, speech test
+
+## Why custom events can appear without launches / interactions
+
+Custom events are recorded by API after the agent is running. App launches and the
+Interactions UI depend on starting the agent from the **launcher Activity** and on
+default interaction tracing. Starting from `Application` (or any non-Activity class)
+is unsupported and commonly yields empty launch / interaction charts even when custom
+events look healthy.
 
 ## Privacy (AAC content)
 

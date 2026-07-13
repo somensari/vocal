@@ -9,7 +9,9 @@ import org.junit.Test
 import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.BoardThemePreset
 import org.openaac.vocal.core.domain.model.Phrase
+import org.openaac.vocal.core.domain.model.SymbolCacheMaxSizeMb
 import org.openaac.vocal.core.domain.repository.BoardRepository
+import org.openaac.vocal.core.domain.repository.MonitoringRepository
 import org.openaac.vocal.core.domain.repository.PhraseRepository
 import org.openaac.vocal.core.domain.repository.SpeechError
 import org.openaac.vocal.core.domain.repository.SpeechRepository
@@ -20,6 +22,7 @@ class UseCasesTest {
     @Test
     fun speakPhraseUseCase_usesSpokenTextNotLabel() = runTest {
         val speech = FakeSpeechRepository()
+        val monitoring = FakeMonitoringRepository()
         val phrase = Phrase(
             id = 1,
             boardId = 1,
@@ -30,7 +33,7 @@ class UseCasesTest {
             audioPath = "/files/water.m4a",
         )
 
-        SpeakPhraseUseCase(speech).invoke(phrase)
+        SpeakPhraseUseCase(speech, monitoring).invoke(phrase)
 
         assertEquals("I want water", speech.lastText)
         assertEquals("/files/water.m4a", speech.lastAudioPath)
@@ -39,6 +42,7 @@ class UseCasesTest {
     @Test
     fun savePhraseUseCase_delegatesToRepository() = runTest {
         val phrases = FakePhraseRepository()
+        val monitoring = FakeMonitoringRepository()
         val phrase = Phrase(
             id = 0,
             boardId = 1,
@@ -48,7 +52,7 @@ class UseCasesTest {
             column = 0,
         )
 
-        val id = SavePhraseUseCase(phrases).invoke(phrase)
+        val id = SavePhraseUseCase(phrases, monitoring).invoke(phrase)
 
         assertEquals(42L, id)
         assertEquals(phrase, phrases.lastSaved)
@@ -57,8 +61,9 @@ class UseCasesTest {
     @Test
     fun deletePhraseUseCase_delegatesToRepository() = runTest {
         val phrases = FakePhraseRepository()
+        val monitoring = FakeMonitoringRepository()
 
-        DeletePhraseUseCase(phrases).invoke(7L)
+        DeletePhraseUseCase(phrases, monitoring).invoke(7L)
 
         assertEquals(7L, phrases.lastDeletedId)
     }
@@ -66,8 +71,9 @@ class UseCasesTest {
     @Test
     fun setBoardThemePresetUseCase_persistsPreset() = runTest {
         val prefs = FakeUserPreferencesRepository()
+        val monitoring = FakeMonitoringRepository()
 
-        SetBoardThemePresetUseCase(prefs).invoke(BoardThemePreset.HighContrast)
+        SetBoardThemePresetUseCase(prefs, monitoring).invoke(BoardThemePreset.HighContrast)
 
         assertEquals(BoardThemePreset.HighContrast, prefs.lastPreset)
     }
@@ -107,6 +113,39 @@ class UseCasesTest {
         }
     }
 
+    private class FakeMonitoringRepository : MonitoringRepository {
+        override fun recordHandledException(
+            throwable: Throwable,
+            attributes: Map<String, Any>,
+        ) = Unit
+
+        override fun recordBreadcrumb(
+            name: String,
+            attributes: Map<String, Any>,
+        ) = Unit
+
+        override fun recordCustomEvent(
+            eventName: String,
+            attributes: Map<String, Any>,
+        ) = Unit
+
+        override fun startInteraction(name: String): String? = "interaction"
+
+        override fun endInteraction(interactionId: String?) = Unit
+
+        override fun setInteractionName(name: String) = Unit
+
+        override fun setSessionAttribute(name: String, value: String) = Unit
+
+        override fun setSessionAttribute(name: String, value: Double) = Unit
+
+        override fun setSessionAttribute(name: String, value: Boolean) = Unit
+
+        override fun recordMetric(name: String, category: String, value: Double) = Unit
+
+        override fun incrementSessionAttribute(name: String) = Unit
+    }
+
     private class FakePhraseRepository : PhraseRepository {
         var lastSaved: Phrase? = null
         var lastDeletedId: Long? = null
@@ -123,6 +162,8 @@ class UseCasesTest {
         override suspend fun deletePhrase(id: Long) {
             lastDeletedId = id
         }
+
+        override suspend fun getAllIconPaths(): List<String> = emptyList()
     }
 
     private class FakeUserPreferencesRepository : UserPreferencesRepository {
@@ -132,11 +173,16 @@ class UseCasesTest {
 
         override val boardThemePreset: Flow<BoardThemePreset> = flowOf(BoardThemePreset.Default)
 
+        override val symbolCacheMaxSizeMb: Flow<SymbolCacheMaxSizeMb> =
+            flowOf(SymbolCacheMaxSizeMb.Default)
+
         override suspend fun setSpeechRate(rate: Float) = Unit
 
         override suspend fun setBoardThemePreset(preset: BoardThemePreset) {
             lastPreset = preset
         }
+
+        override suspend fun setSymbolCacheMaxSizeMb(maxSize: SymbolCacheMaxSizeMb) = Unit
     }
 
     private class FakeBoardRepository : BoardRepository {

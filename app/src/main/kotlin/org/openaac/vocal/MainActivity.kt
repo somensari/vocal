@@ -7,6 +7,7 @@ import org.openaac.vocal.core.domain.repository.UserPreferencesRepository
 import org.openaac.vocal.core.ui.theme.VocalTheme
 import org.openaac.vocal.feature.board.BoardRoute
 import org.openaac.vocal.feature.settings.SettingsRoute
+import org.openaac.vocal.monitoring.NewRelicMonitoring
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
@@ -42,6 +43,9 @@ class MainActivity : ComponentActivity() {
     lateinit var monitoringRepository: MonitoringRepository
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        // New Relic: must be the first line of the launcher Activity onCreate — not Application.
+        // https://docs.newrelic.com/docs/mobile-monitoring/new-relic-mobile-android/troubleshoot/no-data-appears-android/
+        NewRelicMonitoring.start(application)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -74,6 +78,8 @@ private fun VocalApp(monitoringRepository: MonitoringRepository) {
             VocalDestination.Settings -> MonitoringEvents.Screen.Settings
             else -> return@LaunchedEffect
         }
+        // Name the default Activity interaction for Compose destinations.
+        monitoringRepository.setInteractionName("Display $screen")
         monitoringRepository.recordBreadcrumb(
             name = "screen_view",
             attributes = mapOf(MonitoringEvents.Attr.Screen to screen),
