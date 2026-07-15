@@ -5,12 +5,15 @@ import androidx.room.Room
 import org.openaac.vocal.core.data.local.VocalDatabase
 import org.openaac.vocal.core.data.local.dao.BoardDao
 import org.openaac.vocal.core.data.local.dao.PhraseDao
+import org.openaac.vocal.core.data.local.dao.PhraseGroupDao
 import org.openaac.vocal.core.data.repository.BoardRepositoryImpl
+import org.openaac.vocal.core.data.repository.PhraseGroupRepositoryImpl
 import org.openaac.vocal.core.data.repository.PhraseRepositoryImpl
 import org.openaac.vocal.core.data.preferences.UserPreferencesRepositoryImpl
 import org.openaac.vocal.core.data.speech.SpeechRepositoryImpl
 import org.openaac.vocal.core.data.symbol.SymbolCacheRepositoryImpl
 import org.openaac.vocal.core.domain.repository.BoardRepository
+import org.openaac.vocal.core.domain.repository.PhraseGroupRepository
 import org.openaac.vocal.core.domain.repository.PhraseRepository
 import org.openaac.vocal.core.domain.repository.SpeechRepository
 import org.openaac.vocal.core.domain.repository.SymbolCacheRepository
@@ -34,7 +37,10 @@ object DatabaseModule {
             context,
             VocalDatabase::class.java,
             "vocal.db",
-        ).addMigrations(VocalDatabase.MIGRATION_1_2)
+        ).addMigrations(
+            VocalDatabase.MIGRATION_1_2,
+            VocalDatabase.MIGRATION_2_3,
+        )
             .fallbackToDestructiveMigration()
             .build()
 
@@ -43,6 +49,9 @@ object DatabaseModule {
 
     @Provides
     fun providePhraseDao(database: VocalDatabase): PhraseDao = database.phraseDao()
+
+    @Provides
+    fun providePhraseGroupDao(database: VocalDatabase): PhraseGroupDao = database.phraseGroupDao()
 }
 
 @Module
@@ -56,6 +65,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindPhraseRepository(impl: PhraseRepositoryImpl): PhraseRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPhraseGroupRepository(impl: PhraseGroupRepositoryImpl): PhraseGroupRepository
 
     @Binds
     @Singleton

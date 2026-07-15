@@ -2,8 +2,10 @@ package org.openaac.vocal.core.data.mapper
 
 import org.openaac.vocal.core.data.local.entity.BoardEntity
 import org.openaac.vocal.core.data.local.entity.PhraseEntity
+import org.openaac.vocal.core.data.local.entity.PhraseGroupEntity
 import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.Phrase
+import org.openaac.vocal.core.domain.model.PhraseGroup
 
 internal fun BoardEntity.toDomain(): Board = Board(
     id = id,
@@ -20,6 +22,22 @@ internal fun Board.toEntity(isDefault: Boolean): BoardEntity = BoardEntity(
     isDefault = isDefault,
 )
 
+internal fun PhraseGroupEntity.toDomain(): PhraseGroup = PhraseGroup(
+    id = id,
+    boardId = boardId,
+    name = name,
+    colorIndex = colorIndex,
+    sortOrder = sortOrder,
+)
+
+internal fun PhraseGroup.toEntity(): PhraseGroupEntity = PhraseGroupEntity(
+    id = id,
+    boardId = boardId,
+    name = name,
+    colorIndex = colorIndex,
+    sortOrder = sortOrder,
+)
+
 internal fun PhraseEntity.toDomain(): Phrase = Phrase(
     id = id,
     boardId = boardId,
@@ -29,6 +47,7 @@ internal fun PhraseEntity.toDomain(): Phrase = Phrase(
     column = column,
     iconPath = iconPath,
     audioPath = audioPath,
+    groupId = groupId,
 )
 
 internal fun Phrase.toEntity(): PhraseEntity = PhraseEntity(
@@ -40,4 +59,5 @@ internal fun Phrase.toEntity(): PhraseEntity = PhraseEntity(
     column = column,
     iconPath = iconPath,
     audioPath = audioPath,
+    groupId = groupId,
 )

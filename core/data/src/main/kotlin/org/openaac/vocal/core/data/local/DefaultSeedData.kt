@@ -1,10 +1,15 @@
 package org.openaac.vocal.core.data.local
 
-import org.openaac.vocal.core.data.local.entity.BoardEntity
-import org.openaac.vocal.core.data.local.entity.PhraseEntity
 import org.openaac.vocal.core.data.local.dao.BoardDao
 import org.openaac.vocal.core.data.local.dao.PhraseDao
+import org.openaac.vocal.core.data.local.dao.PhraseGroupDao
+import org.openaac.vocal.core.data.local.entity.BoardEntity
+import org.openaac.vocal.core.data.local.entity.PhraseEntity
+import org.openaac.vocal.core.data.local.entity.PhraseGroupEntity
 import org.openaac.vocal.core.domain.model.BundledPhraseIcons
+import org.openaac.vocal.core.domain.model.clusterPhrasesForBoard
+import org.openaac.vocal.core.domain.model.Phrase
+import org.openaac.vocal.core.domain.model.PhraseGroup
 
 internal object DefaultSeedData {
     const val DEFAULT_BOARD_NAME = "My Board"
@@ -13,57 +18,81 @@ internal object DefaultSeedData {
     const val DEFAULT_COLUMNS = 8
 
     /**
-     * Thirty-two common AAC starter phrases with bundled icons.
+     * Starter topic groups (within the 8-group cap). Colors are fixed palette indices.
+     */
+    val starterGroups = listOf(
+        GroupSeed(name = "Basics", colorIndex = 0, sortOrder = 0),
+        GroupSeed(name = "Social", colorIndex = 1, sortOrder = 1),
+        GroupSeed(name = "Needs", colorIndex = 2, sortOrder = 2),
+        GroupSeed(name = "Feelings", colorIndex = 3, sortOrder = 3),
+        GroupSeed(name = "Places", colorIndex = 4, sortOrder = 4),
+    )
+
+    /**
+     * Thirty-two common AAC starter phrases with bundled icons and pre-assigned groups.
      * Fresh installs seed these offline; no network is required for board use.
+     *
+     * Row/column values below are initial placeholders; [ensureDefaultBoard] reassigns
+     * positions via [clusterPhrasesForBoard] so same-group phrases sit together.
      */
     val starterPhrases = listOf(
-        // Row 0
-        PhraseSeed("Yes", "Yes", 0, 0, BundledPhraseIcons.YES),
-        PhraseSeed("No", "No", 0, 1, BundledPhraseIcons.NO),
-        PhraseSeed("Help", "I need help", 0, 2, BundledPhraseIcons.HELP),
-        PhraseSeed("Please", "Please", 0, 3, BundledPhraseIcons.PLEASE),
-        PhraseSeed("Thank you", "Thank you", 0, 4, BundledPhraseIcons.THANK_YOU),
-        PhraseSeed("Hello", "Hello", 0, 5, BundledPhraseIcons.HELLO),
-        PhraseSeed("Goodbye", "Goodbye", 0, 6, BundledPhraseIcons.GOODBYE),
-        PhraseSeed("More", "More please", 0, 7, BundledPhraseIcons.MORE),
-        // Row 1
-        PhraseSeed("Want", "I want", 1, 0, BundledPhraseIcons.WANT),
-        PhraseSeed("Like", "I like this", 1, 1, BundledPhraseIcons.LIKE),
-        PhraseSeed("Don't like", "I don't like this", 1, 2, BundledPhraseIcons.DONT_LIKE),
-        PhraseSeed("Eat", "I want to eat", 1, 3, BundledPhraseIcons.EAT),
-        PhraseSeed("Drink", "I want a drink", 1, 4, BundledPhraseIcons.DRINK),
-        PhraseSeed("Water", "I want water", 1, 5, BundledPhraseIcons.WATER),
-        PhraseSeed("Hungry", "I am hungry", 1, 6, BundledPhraseIcons.HUNGRY),
-        PhraseSeed("Bathroom", "I need the bathroom", 1, 7, BundledPhraseIcons.BATHROOM),
-        // Row 2
-        PhraseSeed("Happy", "I am happy", 2, 0, BundledPhraseIcons.HAPPY),
-        PhraseSeed("Sad", "I am sad", 2, 1, BundledPhraseIcons.SAD),
-        PhraseSeed("Tired", "I am tired", 2, 2, BundledPhraseIcons.TIRED),
-        PhraseSeed("Hurt", "I am hurt", 2, 3, BundledPhraseIcons.HURT),
-        PhraseSeed("Hot", "I am hot", 2, 4, BundledPhraseIcons.HOT),
-        PhraseSeed("Cold", "I am cold", 2, 5, BundledPhraseIcons.COLD),
-        PhraseSeed("Stop", "Stop please", 2, 6, BundledPhraseIcons.STOP),
-        PhraseSeed("Wait", "Please wait", 2, 7, BundledPhraseIcons.WAIT),
-        // Row 3
-        PhraseSeed("Go", "I want to go", 3, 0, BundledPhraseIcons.GO),
-        PhraseSeed("Come", "Come here", 3, 1, BundledPhraseIcons.COME),
-        PhraseSeed("Home", "I want to go home", 3, 2, BundledPhraseIcons.HOME),
-        PhraseSeed("School", "I want to go to school", 3, 3, BundledPhraseIcons.SCHOOL),
-        PhraseSeed("Play", "I want to play", 3, 4, BundledPhraseIcons.PLAY),
-        PhraseSeed("Break", "I need a break", 3, 5, BundledPhraseIcons.BREAK),
-        PhraseSeed("Finished", "I am finished", 3, 6, BundledPhraseIcons.FINISHED),
-        PhraseSeed("Love you", "I love you", 3, 7, BundledPhraseIcons.LOVE_YOU),
+        // Basics
+        PhraseSeed("Yes", "Yes", BundledPhraseIcons.YES, "Basics"),
+        PhraseSeed("No", "No", BundledPhraseIcons.NO, "Basics"),
+        PhraseSeed("Help", "I need help", BundledPhraseIcons.HELP, "Basics"),
+        PhraseSeed("More", "More please", BundledPhraseIcons.MORE, "Basics"),
+        PhraseSeed("Stop", "Stop please", BundledPhraseIcons.STOP, "Basics"),
+        PhraseSeed("Wait", "Please wait", BundledPhraseIcons.WAIT, "Basics"),
+        // Social
+        PhraseSeed("Please", "Please", BundledPhraseIcons.PLEASE, "Social"),
+        PhraseSeed("Thank you", "Thank you", BundledPhraseIcons.THANK_YOU, "Social"),
+        PhraseSeed("Hello", "Hello", BundledPhraseIcons.HELLO, "Social"),
+        PhraseSeed("Goodbye", "Goodbye", BundledPhraseIcons.GOODBYE, "Social"),
+        PhraseSeed("Love you", "I love you", BundledPhraseIcons.LOVE_YOU, "Social"),
+        // Needs
+        PhraseSeed("Want", "I want", BundledPhraseIcons.WANT, "Needs"),
+        PhraseSeed("Eat", "I want to eat", BundledPhraseIcons.EAT, "Needs"),
+        PhraseSeed("Drink", "I want a drink", BundledPhraseIcons.DRINK, "Needs"),
+        PhraseSeed("Water", "I want water", BundledPhraseIcons.WATER, "Needs"),
+        PhraseSeed("Hungry", "I am hungry", BundledPhraseIcons.HUNGRY, "Needs"),
+        PhraseSeed("Bathroom", "I need the bathroom", BundledPhraseIcons.BATHROOM, "Needs"),
+        PhraseSeed("Break", "I need a break", BundledPhraseIcons.BREAK, "Needs"),
+        // Feelings
+        PhraseSeed("Like", "I like this", BundledPhraseIcons.LIKE, "Feelings"),
+        PhraseSeed("Don't like", "I don't like this", BundledPhraseIcons.DONT_LIKE, "Feelings"),
+        PhraseSeed("Happy", "I am happy", BundledPhraseIcons.HAPPY, "Feelings"),
+        PhraseSeed("Sad", "I am sad", BundledPhraseIcons.SAD, "Feelings"),
+        PhraseSeed("Tired", "I am tired", BundledPhraseIcons.TIRED, "Feelings"),
+        PhraseSeed("Hurt", "I am hurt", BundledPhraseIcons.HURT, "Feelings"),
+        PhraseSeed("Hot", "I am hot", BundledPhraseIcons.HOT, "Feelings"),
+        PhraseSeed("Cold", "I am cold", BundledPhraseIcons.COLD, "Feelings"),
+        // Places
+        PhraseSeed("Go", "I want to go", BundledPhraseIcons.GO, "Places"),
+        PhraseSeed("Come", "Come here", BundledPhraseIcons.COME, "Places"),
+        PhraseSeed("Home", "I want to go home", BundledPhraseIcons.HOME, "Places"),
+        PhraseSeed("School", "I want to go to school", BundledPhraseIcons.SCHOOL, "Places"),
+        PhraseSeed("Play", "I want to play", BundledPhraseIcons.PLAY, "Places"),
+        PhraseSeed("Finished", "I am finished", BundledPhraseIcons.FINISHED, "Places"),
+    )
+
+    data class GroupSeed(
+        val name: String,
+        val colorIndex: Int,
+        val sortOrder: Int,
     )
 
     data class PhraseSeed(
         val label: String,
         val spokenText: String,
-        val row: Int,
-        val column: Int,
         val iconPath: String,
+        val groupName: String?,
     )
 
-    suspend fun ensureDefaultBoard(boardDao: BoardDao, phraseDao: PhraseDao): BoardEntity {
+    suspend fun ensureDefaultBoard(
+        boardDao: BoardDao,
+        phraseDao: PhraseDao,
+        phraseGroupDao: PhraseGroupDao,
+    ): BoardEntity {
         val existing = boardDao.getDefaultBoard()
         if (existing != null) {
             backfillStarterPhraseIcons(existing.id, phraseDao)
@@ -87,15 +116,56 @@ internal object DefaultSeedData {
                 isDefault = true,
             )
 
-        starterPhrases.forEach { seed ->
+        val groupIdsByName = linkedMapOf<String, Long>()
+        starterGroups.forEach { seed ->
+            val id = phraseGroupDao.insert(
+                PhraseGroupEntity(
+                    boardId = board.id,
+                    name = seed.name,
+                    colorIndex = seed.colorIndex,
+                    sortOrder = seed.sortOrder,
+                ),
+            )
+            groupIdsByName[seed.name] = id
+        }
+
+        val domainGroups = starterGroups.map { seed ->
+            PhraseGroup(
+                id = groupIdsByName.getValue(seed.name),
+                boardId = board.id,
+                name = seed.name,
+                colorIndex = seed.colorIndex,
+                sortOrder = seed.sortOrder,
+            )
+        }
+        val domainPhrases = starterPhrases.mapIndexed { index, seed ->
+            Phrase(
+                id = index.toLong() + 1,
+                boardId = board.id,
+                label = seed.label,
+                spokenText = seed.spokenText,
+                row = 0,
+                column = index,
+                iconPath = seed.iconPath,
+                groupId = seed.groupName?.let { groupIdsByName[it] },
+            )
+        }
+        val clustered = clusterPhrasesForBoard(
+            phrases = domainPhrases,
+            groups = domainGroups,
+            columns = DEFAULT_COLUMNS,
+        )
+
+        clustered.forEach { phrase ->
             phraseDao.insert(
                 PhraseEntity(
                     boardId = board.id,
-                    label = seed.label,
-                    spokenText = seed.spokenText,
-                    row = seed.row,
-                    column = seed.column,
-                    iconPath = seed.iconPath,
+                    label = phrase.label,
+                    spokenText = phrase.spokenText,
+                    row = phrase.row,
+                    column = phrase.column,
+                    iconPath = phrase.iconPath,
+                    groupId = phrase.groupId,
                 ),
             )
         }
