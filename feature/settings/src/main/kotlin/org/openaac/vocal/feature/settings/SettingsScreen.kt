@@ -2,21 +2,27 @@ package org.openaac.vocal.feature.settings
 
 import org.openaac.vocal.core.domain.model.BoardThemePreset
 import org.openaac.vocal.core.domain.model.Phrase
+import org.openaac.vocal.core.domain.model.PhraseGroup
 import org.openaac.vocal.core.domain.model.SymbolCacheMaxSizeMb
 import org.openaac.vocal.core.ui.accessibility.AacSecondaryTouchTarget
 import org.openaac.vocal.core.ui.components.AacSecondaryButton
 import org.openaac.vocal.core.ui.theme.VocalTheme
 import org.openaac.vocal.core.ui.theme.VocalThemePresets
+import org.openaac.vocal.core.ui.theme.phraseGroupBackground
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -73,6 +79,13 @@ fun SettingsRoute(
         onEditorSpokenTextChange = viewModel::updateEditorSpokenText,
         onEditorRowChange = viewModel::updateEditorRow,
         onEditorColumnChange = viewModel::updateEditorColumn,
+        onEditorGroupChange = viewModel::updateEditorGroupId,
+        onAddGroup = viewModel::startAddGroup,
+        onRenameGroup = viewModel::startRenameGroup,
+        onDeleteGroup = viewModel::deleteGroup,
+        onDismissGroupEditor = viewModel::dismissGroupEditor,
+        onSaveGroupEditor = viewModel::saveGroupEditor,
+        onGroupEditorNameChange = viewModel::updateGroupEditorName,
         onBoardThemePresetSelected = viewModel::setBoardThemePreset,
         onSymbolCacheMaxSizeSelected = viewModel::setSymbolCacheMaxSize,
         onCleanImageCache = viewModel::cleanImageCache,
@@ -96,6 +109,13 @@ fun SettingsScreen(
     onEditorSpokenTextChange: (String) -> Unit,
     onEditorRowChange: (Int) -> Unit,
     onEditorColumnChange: (Int) -> Unit,
+    onEditorGroupChange: (Long?) -> Unit,
+    onAddGroup: () -> Unit,
+    onRenameGroup: (PhraseGroup) -> Unit,
+    onDeleteGroup: (PhraseGroup) -> Unit,
+    onDismissGroupEditor: () -> Unit,
+    onSaveGroupEditor: () -> Unit,
+    onGroupEditorNameChange: (String) -> Unit,
     onBoardThemePresetSelected: (BoardThemePreset) -> Unit,
     onSymbolCacheMaxSizeSelected: (SymbolCacheMaxSizeMb) -> Unit,
     onCleanImageCache: () -> Unit,
@@ -118,6 +138,11 @@ fun SettingsScreen(
         SettingsMessage.SpeechTestOk -> stringResource(R.string.settings_message_speech_test_ok)
         SettingsMessage.SpeechTestFailed -> stringResource(R.string.settings_message_speech_test_failed)
         SettingsMessage.CacheCleaned -> stringResource(R.string.settings_message_cache_cleaned)
+        SettingsMessage.GroupCreated -> stringResource(R.string.settings_message_group_created)
+        SettingsMessage.GroupRenamed -> stringResource(R.string.settings_message_group_renamed)
+        SettingsMessage.GroupDeleted -> stringResource(R.string.settings_message_group_deleted)
+        SettingsMessage.GroupLimitReached -> stringResource(R.string.settings_message_group_limit_reached)
+        SettingsMessage.GroupNameRequired -> stringResource(R.string.settings_message_group_name_required)
         null -> null
     }
 
@@ -175,6 +200,16 @@ fun SettingsScreen(
                 SpeechTestSection(onTestSpeech = onTestSpeech)
             }
 
+            item(key = "phrase-groups") {
+                PhraseGroupsSection(
+                    groups = uiState.groups,
+                    canAddGroup = uiState.canAddGroup,
+                    onAddGroup = onAddGroup,
+                    onRenameGroup = onRenameGroup,
+                    onDeleteGroup = onDeleteGroup,
+                )
+            }
+
             item(key = "symbol-cache") {
                 SymbolCacheSection(
                     selectedMaxSize = uiState.selectedSymbolCacheMaxSize,
@@ -192,6 +227,7 @@ fun SettingsScreen(
             items(uiState.phrases, key = { it.id }) { phrase ->
                 PhraseListItem(
                     phrase = phrase,
+                    groupName = uiState.groups.firstOrNull { it.id == phrase.groupId }?.name,
                     onEdit = { onEditPhrase(phrase) },
                     onDelete = { onDeletePhrase(phrase) },
                 )
@@ -202,6 +238,7 @@ fun SettingsScreen(
     uiState.editor?.let { editor ->
         PhraseEditorDialog(
             editor = editor,
+            groups = uiState.groups,
             isSaving = uiState.isSavingPhrase,
             onDismiss = onDismissEditor,
             onSave = onSaveEditor,
@@ -209,6 +246,16 @@ fun SettingsScreen(
             onSpokenTextChange = onEditorSpokenTextChange,
             onRowChange = onEditorRowChange,
             onColumnChange = onEditorColumnChange,
+            onGroupChange = onEditorGroupChange,
+        )
+    }
+
+    uiState.groupEditor?.let { editor ->
+        GroupEditorDialog(
+            editor = editor,
+            onDismiss = onDismissGroupEditor,
+            onSave = onSaveGroupEditor,
+            onNameChange = onGroupEditorNameChange,
         )
     }
 
@@ -239,6 +286,157 @@ private fun DisabledAddPhraseFab(
             contentDescription = null,
         )
     }
+}
+
+@Composable
+private fun PhraseGroupsSection(
+    groups: List<PhraseGroup>,
+    canAddGroup: Boolean,
+    onAddGroup: () -> Unit,
+    onRenameGroup: (PhraseGroup) -> Unit,
+    onDeleteGroup: (PhraseGroup) -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.settings_groups_title),
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Text(
+                text = stringResource(R.string.settings_groups_description),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            groups.forEach { group ->
+                GroupListItem(
+                    group = group,
+                    onRename = { onRenameGroup(group) },
+                    onDelete = { onDeleteGroup(group) },
+                )
+            }
+            val addGroupDescription = if (canAddGroup) {
+                stringResource(R.string.settings_add_group)
+            } else {
+                stringResource(R.string.settings_add_group_limit_reached)
+            }
+            AacSecondaryButton(
+                label = stringResource(R.string.settings_add_group),
+                onClick = onAddGroup,
+                contentDescription = addGroupDescription,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = AacSecondaryTouchTarget),
+            )
+        }
+    }
+}
+
+@Composable
+private fun GroupListItem(
+    group: PhraseGroup,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val tint = phraseGroupBackground(group.colorIndex)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = AacSecondaryTouchTarget),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .background(
+                        color = tint ?: MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(4.dp),
+                    ),
+            )
+            Text(
+                text = group.name,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+        IconButton(
+            onClick = onRename,
+            modifier = Modifier.defaultMinSize(
+                minWidth = AacSecondaryTouchTarget,
+                minHeight = AacSecondaryTouchTarget,
+            ),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = stringResource(R.string.settings_edit_group, group.name),
+            )
+        }
+        IconButton(
+            onClick = onDelete,
+            modifier = Modifier.defaultMinSize(
+                minWidth = AacSecondaryTouchTarget,
+                minHeight = AacSecondaryTouchTarget,
+            ),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = stringResource(R.string.settings_delete_group, group.name),
+            )
+        }
+    }
+}
+
+@Composable
+private fun GroupEditorDialog(
+    editor: GroupEditorState,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit,
+    onNameChange: (String) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = if (editor.id == 0L) {
+                    stringResource(R.string.settings_add_group_title)
+                } else {
+                    stringResource(R.string.settings_rename_group_title)
+                },
+            )
+        },
+        text = {
+            OutlinedTextField(
+                value = editor.name,
+                onValueChange = onNameChange,
+                label = { Text(stringResource(R.string.settings_field_group_name)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+        },
+        confirmButton = {
+            AacSecondaryButton(
+                label = stringResource(R.string.settings_save),
+                onClick = onSave,
+                contentDescription = stringResource(R.string.settings_save),
+            )
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.defaultMinSize(minHeight = AacSecondaryTouchTarget),
+            ) {
+                Text(stringResource(R.string.settings_cancel))
+            }
+        },
+    )
 }
 
 @Composable
@@ -466,6 +664,7 @@ private fun BoardThemePreset.labelResId(): Int = when (this) {
 @Composable
 private fun PhraseListItem(
     phrase: Phrase,
+    groupName: String?,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -490,8 +689,22 @@ private fun PhraseListItem(
                     ),
                     style = MaterialTheme.typography.labelLarge,
                 )
+                Text(
+                    text = if (groupName != null) {
+                        stringResource(R.string.settings_phrase_group, groupName)
+                    } else {
+                        stringResource(R.string.settings_phrase_ungrouped)
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                )
             }
-            IconButton(onClick = onEdit) {
+            IconButton(
+                onClick = onEdit,
+                modifier = Modifier.defaultMinSize(
+                    minWidth = AacSecondaryTouchTarget,
+                    minHeight = AacSecondaryTouchTarget,
+                ),
+            ) {
                 Icon(
                     imageVector = Icons.Default.Edit,
                     contentDescription = stringResource(
@@ -500,7 +713,13 @@ private fun PhraseListItem(
                     ),
                 )
             }
-            IconButton(onClick = onDelete) {
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.defaultMinSize(
+                    minWidth = AacSecondaryTouchTarget,
+                    minHeight = AacSecondaryTouchTarget,
+                ),
+            ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = stringResource(
@@ -516,6 +735,7 @@ private fun PhraseListItem(
 @Composable
 private fun PhraseEditorDialog(
     editor: PhraseEditorState,
+    groups: List<PhraseGroup>,
     isSaving: Boolean,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
@@ -523,6 +743,7 @@ private fun PhraseEditorDialog(
     onSpokenTextChange: (String) -> Unit,
     onRowChange: (Int) -> Unit,
     onColumnChange: (Int) -> Unit,
+    onGroupChange: (Long?) -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -571,6 +792,24 @@ private fun PhraseEditorDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Text(
+                    text = stringResource(R.string.settings_field_group),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                GroupAssignmentOption(
+                    label = stringResource(R.string.settings_group_none),
+                    selected = editor.groupId == null,
+                    enabled = !isSaving,
+                    onClick = { onGroupChange(null) },
+                )
+                groups.forEach { group ->
+                    GroupAssignmentOption(
+                        label = group.name,
+                        selected = editor.groupId == group.id,
+                        enabled = !isSaving,
+                        onClick = { onGroupChange(group.id) },
+                    )
+                }
                 if (isSaving) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -608,6 +847,39 @@ private fun PhraseEditorDialog(
     )
 }
 
+@Composable
+private fun GroupAssignmentOption(
+    label: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = AacSecondaryTouchTarget)
+            .selectable(
+                selected = selected,
+                enabled = enabled,
+                onClick = onClick,
+                role = Role.RadioButton,
+            )
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = null,
+            enabled = enabled,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 private fun SettingsScreenPreview() {
@@ -615,8 +887,11 @@ private fun SettingsScreenPreview() {
         SettingsScreen(
             uiState = SettingsUiState(
                 phrases = listOf(
-                    Phrase(1, 1, "Yes", "Yes", 0, 0),
-                    Phrase(2, 1, "Help", "I need help", 0, 1),
+                    Phrase(1, 1, "Yes", "Yes", 0, 0, groupId = 1),
+                    Phrase(2, 1, "Help", "I need help", 0, 1, groupId = 1),
+                ),
+                groups = listOf(
+                    PhraseGroup(1, 1, "Basics", colorIndex = 0, sortOrder = 0),
                 ),
             ),
             onAddPhrase = {},
@@ -628,6 +903,13 @@ private fun SettingsScreenPreview() {
             onEditorSpokenTextChange = {},
             onEditorRowChange = {},
             onEditorColumnChange = {},
+            onEditorGroupChange = {},
+            onAddGroup = {},
+            onRenameGroup = {},
+            onDeleteGroup = {},
+            onDismissGroupEditor = {},
+            onSaveGroupEditor = {},
+            onGroupEditorNameChange = {},
             onBoardThemePresetSelected = {},
             onSymbolCacheMaxSizeSelected = {},
             onCleanImageCache = {},

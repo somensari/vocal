@@ -2,16 +2,21 @@ package org.openaac.vocal.feature.board
 
 import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.Phrase
+import org.openaac.vocal.core.domain.model.PhraseGroup
+import org.openaac.vocal.core.domain.model.clusterPhrasesForBoard
+import org.openaac.vocal.core.domain.model.computeBoardGrid
 import org.openaac.vocal.core.domain.monitoring.MonitoringEvents
 import org.openaac.vocal.core.domain.repository.MonitoringRepository
 import org.openaac.vocal.core.domain.usecase.EnsureDefaultBoardUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveBoardPhrasesUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveBoardUseCase
+import org.openaac.vocal.core.domain.usecase.ObservePhraseGroupsUseCase
 import org.openaac.vocal.core.domain.usecase.ResolveLocalSymbolFilePathUseCase
 import org.openaac.vocal.core.domain.usecase.SpeakPhraseUseCase
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,13 +32,16 @@ import javax.inject.Inject
 data class BoardUiState(
     val board: Board? = null,
     val phrases: List<Phrase> = emptyList(),
+    val groups: List<PhraseGroup> = emptyList(),
     val isLoading: Boolean = true,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class BoardViewModel @Inject constructor(
     observeBoardUseCase: ObserveBoardUseCase,
     observeBoardPhrasesUseCase: ObserveBoardPhrasesUseCase,
+    observePhraseGroupsUseCase: ObservePhraseGroupsUseCase,
     private val ensureDefaultBoardUseCase: EnsureDefaultBoardUseCase,
     private val speakPhraseUseCase: SpeakPhraseUseCase,
     private val resolveLocalSymbolFilePathUseCase: ResolveLocalSymbolFilePathUseCase,
@@ -51,10 +59,19 @@ class BoardViewModel @Inject constructor(
                 observeBoardPhrasesUseCase(boardId)
             }
         },
-    ) { board, phrases ->
+        activeBoardId.flatMapLatest { boardId ->
+            if (boardId == null) {
+                flowOf(emptyList())
+            } else {
+                observePhraseGroupsUseCase(boardId)
+            }
+        },
+    ) { board, phrases, groups ->
+        val grid = computeBoardGrid(phrases.size)
         BoardUiState(
             board = board,
-            phrases = phrases,
+            phrases = clusterPhrasesForBoard(phrases, groups, columns = grid.columns),
+            groups = groups,
             isLoading = board == null,
         )
     }.stateIn(

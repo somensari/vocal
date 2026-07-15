@@ -23,7 +23,7 @@ google-services.json
 # Room schema exports are committed
 !**/schemas/**
 
-# Cursor / local
+# Cursor / local scratch (repo-root only; do not ignore source packages named "local")
 *.log
-local/
+/local/
 .cursor/mcp.json

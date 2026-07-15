@@ -3,10 +3,12 @@ package org.openaac.vocal.feature.board
 import org.openaac.vocal.core.domain.model.BundledPhraseIcons
 import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.Phrase
+import org.openaac.vocal.core.domain.model.PhraseGroup
 import org.openaac.vocal.core.domain.model.computeBoardGrid
 import org.openaac.vocal.core.ui.components.AacCellButton
 import org.openaac.vocal.core.ui.theme.VocalTheme
 import org.openaac.vocal.core.ui.theme.boardColors
+import org.openaac.vocal.core.ui.theme.phraseGroupBackground
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -89,6 +91,7 @@ fun BoardScreen(
             else -> {
                 BoardPhraseGrid(
                     phrases = uiState.phrases,
+                    groups = uiState.groups,
                     onPhraseSelected = onPhraseSelected,
                     resolveCachedIconFilePath = resolveCachedIconFilePath,
                     modifier = Modifier
@@ -103,12 +106,15 @@ fun BoardScreen(
 @Composable
 private fun BoardPhraseGrid(
     phrases: List<Phrase>,
+    groups: List<PhraseGroup>,
     onPhraseSelected: (Phrase) -> Unit,
     resolveCachedIconFilePath: (String?) -> String?,
     modifier: Modifier = Modifier,
 ) {
     val gridColors = boardColors()
     val grid = computeBoardGrid(phrases.size)
+    val groupsById = remember(groups) { groups.associateBy { it.id } }
+    // Phrases are already clustered by the ViewModel; keep row/column order.
     val sortedPhrases = remember(phrases) {
         phrases.sortedWith(compareBy<Phrase> { it.row }.thenBy { it.column })
     }
@@ -139,6 +145,7 @@ private fun BoardPhraseGrid(
                     } else {
                         PhraseBoardCell(
                             phrase = phrase,
+                            group = phrase.groupId?.let { groupsById[it] },
                             onPhraseSelected = onPhraseSelected,
                             resolveCachedIconFilePath = resolveCachedIconFilePath,
                             modifier = Modifier
@@ -155,6 +162,7 @@ private fun BoardPhraseGrid(
 @Composable
 private fun PhraseBoardCell(
     phrase: Phrase,
+    group: PhraseGroup?,
     onPhraseSelected: (Phrase) -> Unit,
     resolveCachedIconFilePath: (String?) -> String?,
     modifier: Modifier = Modifier,
@@ -174,12 +182,23 @@ private fun PhraseBoardCell(
         cachedBitmap != null -> null
         else -> placeholderPhraseIconResId()
     }
+    val contentDescription = if (group != null) {
+        stringResource(
+            R.string.board_phrase_grouped_content_description,
+            phrase.spokenText,
+            group.name,
+        )
+    } else {
+        phrase.spokenText
+    }
+    val tint = phraseGroupBackground(group?.colorIndex)
 
     AacCellButton(
         label = phrase.label,
-        contentDescription = phrase.spokenText,
+        contentDescription = contentDescription,
         iconResId = iconResId,
         iconBitmap = cachedBitmap,
+        backgroundColor = tint,
         onClick = { onPhraseSelected(phrase) },
         modifier = modifier,
     )
@@ -220,6 +239,10 @@ private fun BoardScreenSeventeenPhrasesPreview() {
 
 private fun sampleBoardUiState(phraseCount: Int): BoardUiState {
     val grid = computeBoardGrid(phraseCount)
+    val groups = listOf(
+        PhraseGroup(id = 1, boardId = 1, name = "Basics", colorIndex = 0, sortOrder = 0),
+        PhraseGroup(id = 2, boardId = 1, name = "Needs", colorIndex = 2, sortOrder = 1),
+    )
     return BoardUiState(
         board = Board(
             id = 1,
@@ -237,8 +260,14 @@ private fun sampleBoardUiState(phraseCount: Int): BoardUiState {
                 row = zeroBasedIndex / grid.columns,
                 column = zeroBasedIndex % grid.columns,
                 iconPath = samplePhraseIcon(index),
+                groupId = when (index) {
+                    1, 2, 3 -> 1L
+                    4 -> 2L
+                    else -> null
+                },
             )
         },
+        groups = groups,
         isLoading = false,
     )
 }

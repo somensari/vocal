@@ -50,15 +50,18 @@ fun AacCellButton(
     contentDescription: String = label,
     iconResId: Int? = null,
     iconBitmap: ImageBitmap? = null,
+    /** Optional subtle group tint; null keeps the default board cell background. */
+    backgroundColor: Color? = null,
 ) {
     val colors = boardColors()
     Surface(
         onClick = onClick,
         modifier = modifier
             .fillMaxSize()
+            .defaultMinSize(minWidth = AacMinTouchTarget, minHeight = AacMinTouchTarget)
             .semantics { this.contentDescription = contentDescription },
         shape = RoundedCornerShape(BoardCellCornerRadius),
-        color = colors.boardCellBackground,
+        color = backgroundColor ?: colors.boardCellBackground,
         contentColor = colors.boardCellContent,
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
