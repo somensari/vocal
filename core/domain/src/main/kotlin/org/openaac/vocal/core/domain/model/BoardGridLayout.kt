@@ -39,3 +39,54 @@ fun computeBoardGrid(
         totalSlots = columns * rows,
     )
 }
+
+/**
+ * Orders phrases for flat-board display with same-group clustering.
+ *
+ * Layout rule (documented for caregivers/implementers):
+ * 1. Groups appear in ascending [PhraseGroup.sortOrder] (then id).
+ * 2. Within each group, phrases stay contiguous, ordered by stored row/column then id.
+ * 3. Ungrouped phrases follow all grouped clusters, ordered the same way.
+ * 4. Positions are assigned left-to-right, top-to-bottom for [columns].
+ *
+ * The board remains a flat grid (no folder navigation or section headers).
+ * Returned phrases carry updated [Phrase.row]/[Phrase.column] for rendering only.
+ */
+fun clusterPhrasesForBoard(
+    phrases: List<Phrase>,
+    groups: List<PhraseGroup>,
+    columns: Int,
+): List<Phrase> {
+    if (phrases.isEmpty()) return emptyList()
+    val safeColumns = columns.coerceAtLeast(1)
+    val groupsById = groups.associateBy { it.id }
+    val orderedGroups = groups.sortedWith(
+        compareBy<PhraseGroup> { it.sortOrder }.thenBy { it.id },
+    )
+
+    val withinGroupComparator = compareBy<Phrase> { it.row }
+        .thenBy { it.column }
+        .thenBy { it.id }
+
+    val ordered = buildList {
+        for (group in orderedGroups) {
+            val members = phrases
+                .filter { it.groupId == group.id }
+                .sortedWith(withinGroupComparator)
+            addAll(members)
+        }
+        val ungrouped = phrases
+            .filter { phrase ->
+                phrase.groupId == null || phrase.groupId !in groupsById
+            }
+            .sortedWith(withinGroupComparator)
+        addAll(ungrouped)
+    }
+
+    return ordered.mapIndexed { index, phrase ->
+        phrase.copy(
+            row = index / safeColumns,
+            column = index % safeColumns,
+        )
+    }
+}

@@ -3,6 +3,7 @@ package org.openaac.vocal.core.domain.repository
 import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.BoardThemePreset
 import org.openaac.vocal.core.domain.model.Phrase
+import org.openaac.vocal.core.domain.model.PhraseGroup
 import org.openaac.vocal.core.domain.model.SymbolCacheMaxSizeMb
 import org.openaac.vocal.core.domain.model.SymbolCacheUsage
 import org.openaac.vocal.core.domain.model.SymbolMatchResult
@@ -21,6 +22,17 @@ interface PhraseRepository {
     suspend fun savePhrase(phrase: Phrase): Long
     suspend fun deletePhrase(id: Long)
     suspend fun getAllIconPaths(): List<String>
+}
+
+interface PhraseGroupRepository {
+    fun observeGroups(boardId: Long): Flow<List<PhraseGroup>>
+    suspend fun getGroups(boardId: Long): List<PhraseGroup>
+    suspend fun getGroup(id: Long): PhraseGroup?
+    suspend fun countGroups(boardId: Long): Int
+    suspend fun saveGroup(group: PhraseGroup): Long
+    /** Deletes the group and clears [Phrase.groupId] on member phrases (phrases remain). */
+    suspend fun deleteGroup(id: Long)
+    suspend fun assignPhraseToGroup(phraseId: Long, groupId: Long?)
 }
 
 enum class SpeechError {

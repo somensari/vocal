@@ -3,7 +3,9 @@ package org.openaac.vocal.core.domain.usecase
 import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.BoardThemePreset
 import org.openaac.vocal.core.domain.model.BundledPhraseIcons
+import org.openaac.vocal.core.domain.model.MAX_PHRASE_GROUPS
 import org.openaac.vocal.core.domain.model.Phrase
+import org.openaac.vocal.core.domain.model.PhraseGroup
 import org.openaac.vocal.core.domain.model.SavePhraseWithSymbolResult
 import org.openaac.vocal.core.domain.model.SymbolCacheMaxSizeMb
 import org.openaac.vocal.core.domain.model.SymbolCacheUsage
@@ -11,6 +13,7 @@ import org.openaac.vocal.core.domain.model.SymbolMatchResult
 import org.openaac.vocal.core.domain.monitoring.MonitoringEvents
 import org.openaac.vocal.core.domain.repository.BoardRepository
 import org.openaac.vocal.core.domain.repository.MonitoringRepository
+import org.openaac.vocal.core.domain.repository.PhraseGroupRepository
 import org.openaac.vocal.core.domain.repository.PhraseRepository
 import org.openaac.vocal.core.domain.repository.SpeechError
 import org.openaac.vocal.core.domain.repository.SpeechRepository
@@ -19,6 +22,12 @@ import org.openaac.vocal.core.domain.repository.UserPreferencesRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
+
+sealed class CreatePhraseGroupResult {
+    data class Created(val groupId: Long) : CreatePhraseGroupResult()
+    data object LimitReached : CreatePhraseGroupResult()
+    data object BlankName : CreatePhraseGroupResult()
+}
 
 class ObserveBoardUseCase @Inject constructor(
     private val boardRepository: BoardRepository,
@@ -236,4 +245,66 @@ class ResolveLocalSymbolFilePathUseCase @Inject constructor(
 ) {
     operator fun invoke(iconPath: String?): String? =
         symbolCacheRepository.resolveLocalFilePath(iconPath)
+}
+
+class ObservePhraseGroupsUseCase @Inject constructor(
+    private val phraseGroupRepository: PhraseGroupRepository,
+) {
+    operator fun invoke(boardId: Long): Flow<List<PhraseGroup>> =
+        phraseGroupRepository.observeGroups(boardId)
+}
+
+class CreatePhraseGroupUseCase @Inject constructor(
+    private val phraseGroupRepository: PhraseGroupRepository,
+) {
+    suspend operator fun invoke(boardId: Long, name: String): CreatePhraseGroupResult {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return CreatePhraseGroupResult.BlankName
+        if (phraseGroupRepository.countGroups(boardId) >= MAX_PHRASE_GROUPS) {
+            return CreatePhraseGroupResult.LimitReached
+        }
+        val existing = phraseGroupRepository.getGroups(boardId)
+        val usedColors = existing.map { it.colorIndex }.toSet()
+        val colorIndex = (0 until MAX_PHRASE_GROUPS).first { it !in usedColors }
+        val sortOrder = (existing.maxOfOrNull { it.sortOrder } ?: -1) + 1
+        val id = phraseGroupRepository.saveGroup(
+            PhraseGroup(
+                id = 0,
+                boardId = boardId,
+                name = trimmed,
+                colorIndex = colorIndex,
+                sortOrder = sortOrder,
+            ),
+        )
+        return CreatePhraseGroupResult.Created(id)
+    }
+}
+
+class RenamePhraseGroupUseCase @Inject constructor(
+    private val phraseGroupRepository: PhraseGroupRepository,
+) {
+    suspend operator fun invoke(groupId: Long, name: String): Boolean {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return false
+        val existing = phraseGroupRepository.getGroup(groupId) ?: return false
+        phraseGroupRepository.saveGroup(existing.copy(name = trimmed))
+        return true
+    }
+}
+
+class DeletePhraseGroupUseCase @Inject constructor(
+    private val phraseGroupRepository: PhraseGroupRepository,
+) {
+    /** Deletes the group; member phrases remain on the board as ungrouped. */
+    suspend operator fun invoke(groupId: Long) {
+        phraseGroupRepository.deleteGroup(groupId)
+    }
+}
+
+class AssignPhraseGroupUseCase @Inject constructor(
+    private val phraseGroupRepository: PhraseGroupRepository,
+) {
+    suspend operator fun invoke(phraseId: Long, groupId: Long?) {
+        phraseGroupRepository.assignPhraseToGroup(phraseId, groupId)
+    }
 }
