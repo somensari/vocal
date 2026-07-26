@@ -21,7 +21,8 @@ class PhraseGroupClusteringTest {
             phrase(id = 14, label = "Happy", row = 0, column = 0, groupId = 2),
         )
 
-        val clustered = clusterPhrasesForBoard(phrases, groups, columns = 4)
+        // 5 phrases → 4×2 grid; fill top-to-bottom, then left-to-right.
+        val clustered = clusterPhrasesForBoard(phrases, groups, columns = 4, rows = 2)
 
         assertEquals(
             listOf("Hungry", "Water", "Happy", "Sad", "Yes"),
@@ -29,10 +30,14 @@ class PhraseGroupClusteringTest {
         )
         assertEquals(0, clustered[0].row)
         assertEquals(0, clustered[0].column)
-        assertEquals(0, clustered[3].row)
-        assertEquals(3, clustered[3].column)
-        assertEquals(1, clustered[4].row)
-        assertEquals(0, clustered[4].column)
+        assertEquals(1, clustered[1].row)
+        assertEquals(0, clustered[1].column)
+        assertEquals(0, clustered[2].row)
+        assertEquals(1, clustered[2].column)
+        assertEquals(1, clustered[3].row)
+        assertEquals(1, clustered[3].column)
+        assertEquals(0, clustered[4].row)
+        assertEquals(2, clustered[4].column)
     }
 
     @Test
@@ -45,16 +50,22 @@ class PhraseGroupClusteringTest {
             phrase(id = 2, label = "Orphan", row = 0, column = 1, groupId = 99),
         )
 
-        val clustered = clusterPhrasesForBoard(phrases, groups, columns = 2)
+        val clustered = clusterPhrasesForBoard(phrases, groups, columns = 2, rows = 1)
 
         assertEquals(listOf("Water", "Orphan"), clustered.map { it.label })
         assertEquals(1L, clustered[0].groupId)
         assertEquals(99L, clustered[1].groupId)
+        assertEquals(0, clustered[0].row)
+        assertEquals(0, clustered[0].column)
+        assertEquals(0, clustered[1].row)
+        assertEquals(1, clustered[1].column)
     }
 
     @Test
     fun clusterPhrasesForBoard_emptyInput() {
-        assertTrue(clusterPhrasesForBoard(emptyList(), emptyList(), columns = 4).isEmpty())
+        assertTrue(
+            clusterPhrasesForBoard(emptyList(), emptyList(), columns = 4, rows = 1).isEmpty(),
+        )
     }
 
     @Test

@@ -114,9 +114,9 @@ private fun BoardPhraseGrid(
     val gridColors = boardColors()
     val grid = computeBoardGrid(phrases.size)
     val groupsById = remember(groups) { groups.associateBy { it.id } }
-    // Phrases are already clustered by the ViewModel; keep row/column order.
-    val sortedPhrases = remember(phrases) {
-        phrases.sortedWith(compareBy<Phrase> { it.row }.thenBy { it.column })
+    // Phrases are already clustered by the ViewModel (column-major positions).
+    val phrasesByCell = remember(phrases) {
+        phrases.associateBy { it.row to it.column }
     }
 
     Column(
@@ -133,8 +133,7 @@ private fun BoardPhraseGrid(
                 horizontalArrangement = Arrangement.spacedBy(BoardGridGutter),
             ) {
                 for (columnIndex in 0 until grid.columns) {
-                    val slotIndex = rowIndex * grid.columns + columnIndex
-                    val phrase = sortedPhrases.getOrNull(slotIndex)
+                    val phrase = phrasesByCell[rowIndex to columnIndex]
                     if (phrase == null) {
                         Spacer(
                             modifier = Modifier
@@ -257,8 +256,8 @@ private fun sampleBoardUiState(phraseCount: Int): BoardUiState {
                 boardId = 1,
                 label = samplePhraseLabel(index),
                 spokenText = samplePhraseSpokenText(index),
-                row = zeroBasedIndex / grid.columns,
-                column = zeroBasedIndex % grid.columns,
+                row = zeroBasedIndex % grid.rows,
+                column = zeroBasedIndex / grid.rows,
                 iconPath = samplePhraseIcon(index),
                 groupId = when (index) {
                     1, 2, 3 -> 1L

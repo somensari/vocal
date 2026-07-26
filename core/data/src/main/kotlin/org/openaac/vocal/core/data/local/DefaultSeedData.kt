@@ -154,6 +154,7 @@ internal object DefaultSeedData {
             phrases = domainPhrases,
             groups = domainGroups,
             columns = DEFAULT_COLUMNS,
+            rows = DEFAULT_ROWS,
         )
 
         clustered.forEach { phrase ->

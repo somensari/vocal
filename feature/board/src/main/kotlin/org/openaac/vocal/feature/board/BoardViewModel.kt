@@ -70,7 +70,12 @@ class BoardViewModel @Inject constructor(
         val grid = computeBoardGrid(phrases.size)
         BoardUiState(
             board = board,
-            phrases = clusterPhrasesForBoard(phrases, groups, columns = grid.columns),
+            phrases = clusterPhrasesForBoard(
+                phrases = phrases,
+                groups = groups,
+                columns = grid.columns,
+                rows = grid.rows,
+            ),
             groups = groups,
             isLoading = board == null,
         )

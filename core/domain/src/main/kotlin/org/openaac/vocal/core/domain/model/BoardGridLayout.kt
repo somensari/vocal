@@ -45,9 +45,10 @@ fun computeBoardGrid(
  *
  * Layout rule (documented for caregivers/implementers):
  * 1. Groups appear in ascending [PhraseGroup.sortOrder] (then id).
- * 2. Within each group, phrases stay contiguous, ordered by stored row/column then id.
+ * 2. Within each group, phrases stay contiguous, ordered by stored column/row then id.
  * 3. Ungrouped phrases follow all grouped clusters, ordered the same way.
- * 4. Positions are assigned left-to-right, top-to-bottom for [columns].
+ * 4. Positions are assigned top-to-bottom, then left-to-right (column-major)
+ *    into a [rows] × [columns] grid.
  *
  * The board remains a flat grid (no folder navigation or section headers).
  * Returned phrases carry updated [Phrase.row]/[Phrase.column] for rendering only.
@@ -56,16 +57,19 @@ fun clusterPhrasesForBoard(
     phrases: List<Phrase>,
     groups: List<PhraseGroup>,
     columns: Int,
+    rows: Int,
 ): List<Phrase> {
     if (phrases.isEmpty()) return emptyList()
     val safeColumns = columns.coerceAtLeast(1)
+    val safeRows = rows.coerceAtLeast(1)
     val groupsById = groups.associateBy { it.id }
     val orderedGroups = groups.sortedWith(
         compareBy<PhraseGroup> { it.sortOrder }.thenBy { it.id },
     )
 
-    val withinGroupComparator = compareBy<Phrase> { it.row }
-        .thenBy { it.column }
+    // Match column-major fill so re-clustering preserves visual sequence.
+    val withinGroupComparator = compareBy<Phrase> { it.column }
+        .thenBy { it.row }
         .thenBy { it.id }
 
     val ordered = buildList {
@@ -85,8 +89,8 @@ fun clusterPhrasesForBoard(
 
     return ordered.mapIndexed { index, phrase ->
         phrase.copy(
-            row = index / safeColumns,
-            column = index % safeColumns,
+            row = index % safeRows,
+            column = index / safeRows,
         )
     }
 }
