@@ -1,5 +1,7 @@
 package org.openaac.vocal.feature.settings
 
+import android.content.ClipData
+import android.content.ClipDescription
 import org.openaac.vocal.core.domain.model.BoardThemePreset
 import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.domain.model.PhraseGroup
@@ -9,7 +11,12 @@ import org.openaac.vocal.core.ui.components.AacSecondaryButton
 import org.openaac.vocal.core.ui.theme.VocalTheme
 import org.openaac.vocal.core.ui.theme.VocalThemePresets
 import org.openaac.vocal.core.ui.theme.phraseGroupBackground
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.draganddrop.dragAndDropSource
+import androidx.compose.foundation.draganddrop.dragAndDropTarget
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,14 +27,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -47,9 +55,16 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draganddrop.DragAndDropEvent
+import androidx.compose.ui.draganddrop.DragAndDropTarget
+import androidx.compose.ui.draganddrop.DragAndDropTransferData
+import androidx.compose.ui.draganddrop.mimeTypes
+import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -61,6 +76,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+private const val PhraseDragLabel = "vocal.phraseId"
 
 @Composable
 fun SettingsRoute(
@@ -86,6 +103,9 @@ fun SettingsRoute(
         onDismissGroupEditor = viewModel::dismissGroupEditor,
         onSaveGroupEditor = viewModel::saveGroupEditor,
         onGroupEditorNameChange = viewModel::updateGroupEditorName,
+        onMovePhrase = viewModel::startMovePhrase,
+        onDismissMovePhrase = viewModel::dismissMovePhrase,
+        onConfirmMovePhrase = viewModel::movePhraseToGroup,
         onBoardThemePresetSelected = viewModel::setBoardThemePreset,
         onSymbolCacheMaxSizeSelected = viewModel::setSymbolCacheMaxSize,
         onCleanImageCache = viewModel::cleanImageCache,
@@ -116,6 +136,9 @@ fun SettingsScreen(
     onDismissGroupEditor: () -> Unit,
     onSaveGroupEditor: () -> Unit,
     onGroupEditorNameChange: (String) -> Unit,
+    onMovePhrase: (Phrase) -> Unit,
+    onDismissMovePhrase: () -> Unit,
+    onConfirmMovePhrase: (phraseId: Long, groupId: Long?) -> Unit,
     onBoardThemePresetSelected: (BoardThemePreset) -> Unit,
     onSymbolCacheMaxSizeSelected: (SymbolCacheMaxSizeMb) -> Unit,
     onCleanImageCache: () -> Unit,
@@ -143,6 +166,7 @@ fun SettingsScreen(
         SettingsMessage.GroupDeleted -> stringResource(R.string.settings_message_group_deleted)
         SettingsMessage.GroupLimitReached -> stringResource(R.string.settings_message_group_limit_reached)
         SettingsMessage.GroupNameRequired -> stringResource(R.string.settings_message_group_name_required)
+        SettingsMessage.PhraseMoved -> stringResource(R.string.settings_message_phrase_moved)
         null -> null
     }
 
@@ -224,12 +248,14 @@ fun SettingsScreen(
                 AttributionSection()
             }
 
-            items(uiState.phrases, key = { it.id }) { phrase ->
-                PhraseListItem(
-                    phrase = phrase,
-                    groupName = uiState.groups.firstOrNull { it.id == phrase.groupId }?.name,
-                    onEdit = { onEditPhrase(phrase) },
-                    onDelete = { onDeletePhrase(phrase) },
+            item(key = "organize-phrases") {
+                OrganizePhrasesSection(
+                    phrases = uiState.phrases,
+                    groups = uiState.groups,
+                    onEditPhrase = onEditPhrase,
+                    onDeletePhrase = onDeletePhrase,
+                    onMovePhrase = onMovePhrase,
+                    onDropPhrase = onConfirmMovePhrase,
                 )
             }
         }
@@ -256,6 +282,15 @@ fun SettingsScreen(
             onDismiss = onDismissGroupEditor,
             onSave = onSaveGroupEditor,
             onNameChange = onGroupEditorNameChange,
+        )
+    }
+
+    uiState.movePhrase?.let { phrase ->
+        MovePhraseDialog(
+            phrase = phrase,
+            groups = uiState.groups,
+            onDismiss = onDismissMovePhrase,
+            onConfirm = { groupId -> onConfirmMovePhrase(phrase.id, groupId) },
         )
     }
 
@@ -661,41 +696,238 @@ private fun BoardThemePreset.labelResId(): Int = when (this) {
     BoardThemePreset.SoftPastel -> R.string.settings_theme_soft_pastel
 }
 
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun OrganizePhrasesSection(
+    phrases: List<Phrase>,
+    groups: List<PhraseGroup>,
+    onEditPhrase: (Phrase) -> Unit,
+    onDeletePhrase: (Phrase) -> Unit,
+    onMovePhrase: (Phrase) -> Unit,
+    onDropPhrase: (phraseId: Long, groupId: Long?) -> Unit,
+) {
+    val orderedGroups = remember(groups) {
+        groups.sortedWith(compareBy<PhraseGroup> { it.sortOrder }.thenBy { it.id })
+    }
+    val groupIds = remember(orderedGroups) { orderedGroups.map { it.id }.toSet() }
+    val phrasesByGroup = remember(phrases, orderedGroups) {
+        orderedGroups.associate { group ->
+            group.id to phrases
+                .filter { it.groupId == group.id }
+                .sortedWith(compareBy<Phrase> { it.row }.thenBy { it.column }.thenBy { it.id })
+        }
+    }
+    val ungroupedPhrases = remember(phrases, groupIds) {
+        phrases
+            .filter { it.groupId == null || it.groupId !in groupIds }
+            .sortedWith(compareBy<Phrase> { it.row }.thenBy { it.column }.thenBy { it.id })
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.settings_organize_phrases_title),
+            style = MaterialTheme.typography.titleLarge,
+        )
+        Text(
+            text = stringResource(R.string.settings_organize_phrases_description),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        orderedGroups.forEach { group ->
+            PhraseDropGroupCard(
+                title = group.name,
+                colorIndex = group.colorIndex,
+                phrases = phrasesByGroup[group.id].orEmpty(),
+                emptyMessage = stringResource(R.string.settings_group_section_empty),
+                dropGroupId = group.id,
+                onEditPhrase = onEditPhrase,
+                onDeletePhrase = onDeletePhrase,
+                onMovePhrase = onMovePhrase,
+                onDropPhrase = onDropPhrase,
+            )
+        }
+        PhraseDropGroupCard(
+            title = stringResource(R.string.settings_ungrouped_section),
+            colorIndex = null,
+            phrases = ungroupedPhrases,
+            emptyMessage = stringResource(R.string.settings_ungrouped_section_empty),
+            dropGroupId = null,
+            onEditPhrase = onEditPhrase,
+            onDeletePhrase = onDeletePhrase,
+            onMovePhrase = onMovePhrase,
+            onDropPhrase = onDropPhrase,
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun PhraseDropGroupCard(
+    title: String,
+    colorIndex: Int?,
+    phrases: List<Phrase>,
+    emptyMessage: String,
+    dropGroupId: Long?,
+    onEditPhrase: (Phrase) -> Unit,
+    onDeletePhrase: (Phrase) -> Unit,
+    onMovePhrase: (Phrase) -> Unit,
+    onDropPhrase: (phraseId: Long, groupId: Long?) -> Unit,
+) {
+    val isDragOverState = remember { mutableStateOf(false) }
+    val dropTarget = remember(dropGroupId, onDropPhrase) {
+        object : DragAndDropTarget {
+            override fun onStarted(event: DragAndDropEvent) {
+                isDragOverState.value = false
+            }
+
+            override fun onEntered(event: DragAndDropEvent) {
+                isDragOverState.value = true
+            }
+
+            override fun onExited(event: DragAndDropEvent) {
+                isDragOverState.value = false
+            }
+
+            override fun onEnded(event: DragAndDropEvent) {
+                isDragOverState.value = false
+            }
+
+            override fun onDrop(event: DragAndDropEvent): Boolean {
+                isDragOverState.value = false
+                val phraseId = event.phraseIdOrNull() ?: return false
+                onDropPhrase(phraseId, dropGroupId)
+                return true
+            }
+        }
+    }
+    val isDragOver = isDragOverState.value
+    val tint = phraseGroupBackground(colorIndex)
+    val borderColor = if (isDragOver) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .dragAndDropTarget(
+                shouldStartDragAndDrop = { event ->
+                    ClipDescription.MIMETYPE_TEXT_PLAIN in event.mimeTypes()
+                },
+                target = dropTarget,
+            )
+            .border(
+                width = if (isDragOver) 2.dp else 1.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(12.dp),
+            ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (tint != null) {
+                        Modifier.background(tint.copy(alpha = 0.45f))
+                    } else {
+                        Modifier
+                    },
+                )
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = if (isDragOver) {
+                    stringResource(R.string.settings_drop_target_active, title)
+                } else {
+                    title
+                },
+                style = MaterialTheme.typography.titleMedium,
+            )
+            if (phrases.isEmpty()) {
+                Text(
+                    text = emptyMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                phrases.forEach { phrase ->
+                    PhraseListItem(
+                        phrase = phrase,
+                        onEdit = { onEditPhrase(phrase) },
+                        onDelete = { onDeletePhrase(phrase) },
+                        onMove = { onMovePhrase(phrase) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PhraseListItem(
     phrase: Phrase,
-    groupName: String?,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onMove: () -> Unit,
 ) {
+    val dragHandleDescription = stringResource(R.string.settings_drag_phrase_handle, phrase.label)
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(8.dp)
+                .dragAndDropSource {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = {
+                            startTransfer(
+                                DragAndDropTransferData(
+                                    clipData = ClipData.newPlainText(
+                                        PhraseDragLabel,
+                                        phrase.id.toString(),
+                                    ),
+                                ),
+                            )
+                        },
+                        onDrag = { _, _ -> },
+                    )
+                },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+            Icon(
+                imageVector = Icons.Default.DragHandle,
+                contentDescription = dragHandleDescription,
+                modifier = Modifier
+                    .defaultMinSize(
+                        minWidth = AacSecondaryTouchTarget,
+                        minHeight = AacSecondaryTouchTarget,
+                    )
+                    .padding(8.dp),
+            )
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = phrase.label, style = MaterialTheme.typography.titleLarge)
+                Text(text = phrase.label, style = MaterialTheme.typography.titleMedium)
                 Text(
                     text = stringResource(R.string.settings_phrase_speaks, phrase.spokenText),
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium,
                 )
-                Text(
-                    text = stringResource(
-                        R.string.settings_phrase_position,
-                        phrase.row,
-                        phrase.column,
+            }
+            IconButton(
+                onClick = onMove,
+                modifier = Modifier.defaultMinSize(
+                    minWidth = AacSecondaryTouchTarget,
+                    minHeight = AacSecondaryTouchTarget,
+                ),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SwapVert,
+                    contentDescription = stringResource(
+                        R.string.settings_move_phrase,
+                        phrase.label,
                     ),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Text(
-                    text = if (groupName != null) {
-                        stringResource(R.string.settings_phrase_group, groupName)
-                    } else {
-                        stringResource(R.string.settings_phrase_ungrouped)
-                    },
-                    style = MaterialTheme.typography.labelLarge,
                 )
             }
             IconButton(
@@ -730,6 +962,69 @@ private fun PhraseListItem(
             }
         }
     }
+}
+
+@Composable
+private fun MovePhraseDialog(
+    phrase: Phrase,
+    groups: List<PhraseGroup>,
+    onDismiss: () -> Unit,
+    onConfirm: (groupId: Long?) -> Unit,
+) {
+    var selectedGroupId by remember(phrase.id, phrase.groupId) {
+        mutableStateOf(phrase.groupId)
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_move_phrase_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = stringResource(R.string.settings_move_phrase_message, phrase.label),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                GroupAssignmentOption(
+                    label = stringResource(R.string.settings_group_none),
+                    selected = selectedGroupId == null,
+                    enabled = true,
+                    onClick = { selectedGroupId = null },
+                )
+                groups.forEach { group ->
+                    GroupAssignmentOption(
+                        label = group.name,
+                        selected = selectedGroupId == group.id,
+                        enabled = true,
+                        onClick = { selectedGroupId = group.id },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            AacSecondaryButton(
+                label = stringResource(R.string.settings_move_phrase_button),
+                onClick = { onConfirm(selectedGroupId) },
+                contentDescription = stringResource(
+                    R.string.settings_move_phrase,
+                    phrase.label,
+                ),
+                modifier = Modifier.defaultMinSize(minHeight = AacSecondaryTouchTarget),
+            )
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.defaultMinSize(minHeight = AacSecondaryTouchTarget),
+            ) {
+                Text(stringResource(R.string.settings_cancel))
+            }
+        },
+    )
+}
+
+private fun DragAndDropEvent.phraseIdOrNull(): Long? {
+    val clipData = toAndroidDragEvent().clipData ?: return null
+    if (clipData.itemCount <= 0) return null
+    return clipData.getItemAt(0).text?.toString()?.toLongOrNull()
 }
 
 @Composable
@@ -910,6 +1205,9 @@ private fun SettingsScreenPreview() {
             onDismissGroupEditor = {},
             onSaveGroupEditor = {},
             onGroupEditorNameChange = {},
+            onMovePhrase = {},
+            onDismissMovePhrase = {},
+            onConfirmMovePhrase = { _, _ -> },
             onBoardThemePresetSelected = {},
             onSymbolCacheMaxSizeSelected = {},
             onCleanImageCache = {},

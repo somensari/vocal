@@ -71,6 +71,7 @@ enum class SettingsMessage {
     GroupDeleted,
     GroupLimitReached,
     GroupNameRequired,
+    PhraseMoved,
 }
 
 data class SettingsUiState(
@@ -81,6 +82,8 @@ data class SettingsUiState(
     val symbolCacheUsage: SymbolCacheUsage = SymbolCacheUsage(0L, SymbolCacheMaxSizeMb.Default.bytes),
     val editor: PhraseEditorState? = null,
     val groupEditor: GroupEditorState? = null,
+    /** Phrase currently choosing a destination group via the non-gesture Move dialog. */
+    val movePhrase: Phrase? = null,
     val message: SettingsMessage? = null,
     val showCacheLimitDialog: Boolean = false,
     val isSavingPhrase: Boolean = false,
@@ -112,6 +115,7 @@ class SettingsViewModel @Inject constructor(
 
     private val _editor = MutableStateFlow<PhraseEditorState?>(null)
     private val _groupEditor = MutableStateFlow<GroupEditorState?>(null)
+    private val _movePhrase = MutableStateFlow<Phrase?>(null)
     private val _message = MutableStateFlow<SettingsMessage?>(null)
     private val _showCacheLimitDialog = MutableStateFlow(false)
     private val _isSavingPhrase = MutableStateFlow(false)
@@ -137,11 +141,20 @@ class SettingsViewModel @Inject constructor(
         combine(
             _editor,
             _groupEditor,
+            _movePhrase,
             _message,
-            _showCacheLimitDialog,
-            _isSavingPhrase,
-        ) { editor, groupEditor, message, limitDialog, saving ->
-            EditorFlags(editor, groupEditor, message, limitDialog, saving)
+            combine(_showCacheLimitDialog, _isSavingPhrase) { limitDialog, saving ->
+                limitDialog to saving
+            },
+        ) { editor, groupEditor, movePhrase, message, limitAndSaving ->
+            EditorFlags(
+                editor = editor,
+                groupEditor = groupEditor,
+                movePhrase = movePhrase,
+                message = message,
+                showCacheLimitDialog = limitAndSaving.first,
+                isSavingPhrase = limitAndSaving.second,
+            )
         },
     ) { phrasesGroupsThemeCache, editorFlags ->
         SettingsUiState(
@@ -152,6 +165,7 @@ class SettingsViewModel @Inject constructor(
             symbolCacheUsage = phrasesGroupsThemeCache.cacheUsage,
             editor = editorFlags.editor,
             groupEditor = editorFlags.groupEditor,
+            movePhrase = editorFlags.movePhrase,
             message = editorFlags.message,
             showCacheLimitDialog = editorFlags.showCacheLimitDialog,
             isSavingPhrase = editorFlags.isSavingPhrase,
@@ -363,6 +377,28 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /** Opens the non-gesture "Move to group…" chooser for [phrase]. */
+    fun startMovePhrase(phrase: Phrase) {
+        _movePhrase.value = phrase
+        _message.value = null
+    }
+
+    fun dismissMovePhrase() {
+        _movePhrase.value = null
+    }
+
+    /**
+     * Moves [phraseId] into [groupId] (or ungrouped when null).
+     * Used by both drag-and-drop and the Move dialog.
+     */
+    fun movePhraseToGroup(phraseId: Long, groupId: Long?) {
+        viewModelScope.launch {
+            assignPhraseGroupUseCase(phraseId, groupId)
+            _movePhrase.value = null
+            _message.value = SettingsMessage.PhraseMoved
+        }
+    }
+
     fun clearMessage() {
         _message.value = null
     }
@@ -420,6 +456,7 @@ class SettingsViewModel @Inject constructor(
     private data class EditorFlags(
         val editor: PhraseEditorState?,
         val groupEditor: GroupEditorState?,
+        val movePhrase: Phrase?,
         val message: SettingsMessage?,
         val showCacheLimitDialog: Boolean,
         val isSavingPhrase: Boolean,

@@ -50,6 +50,19 @@
     <string name="settings_message_group_name_required">Group name is required.</string>
     <string name="settings_add_group_limit_reached">Cannot add group. Limit of 8 groups reached.</string>
 
+    <string name="settings_organize_phrases_title">Organize phrases</string>
+    <string name="settings_organize_phrases_description">Drag a phrase onto a group (or Ungrouped), or use Move to group. The board stays a calm grid without these controls.</string>
+    <string name="settings_ungrouped_section">Ungrouped</string>
+    <string name="settings_group_section_empty">No phrases in this group yet. Drag a phrase here or use Move to group.</string>
+    <string name="settings_ungrouped_section_empty">No ungrouped phrases.</string>
+    <string name="settings_move_phrase">Move %1$s to group</string>
+    <string name="settings_move_phrase_button">Move</string>
+    <string name="settings_move_phrase_title">Move to group</string>
+    <string name="settings_move_phrase_message">Choose a group for %1$s, or leave it ungrouped.</string>
+    <string name="settings_drag_phrase_handle">Drag %1$s to another group</string>
+    <string name="settings_drop_target_active">Drop here to move into %1$s</string>
+    <string name="settings_message_phrase_moved">Phrase moved.</string>
+
     <string name="settings_symbol_cache_title">Symbol image cache</string>
     <string name="settings_symbol_cache_description">Downloaded SymboTalk symbols are stored on this device for offline board use. Bundled starter icons do not count toward this limit.</string>
     <string name="settings_symbol_cache_usage">Using about %1$d MB of %2$d MB</string>
