@@ -14,6 +14,12 @@ interface BoardRepository {
     fun observePhrases(boardId: Long): Flow<List<Phrase>>
     suspend fun ensureDefaultBoard(): Board
     suspend fun updateBoard(board: Board)
+
+    /**
+     * Full replace: deletes all phrases (and their custom local icon/audio files)
+     * and groups on the default board, then restores the starter set with bundled icons.
+     */
+    suspend fun resetToStarterBoard()
 }
 
 interface PhraseRepository {
@@ -22,6 +28,9 @@ interface PhraseRepository {
     suspend fun savePhrase(phrase: Phrase): Long
     suspend fun deletePhrase(id: Long)
     suspend fun getAllIconPaths(): List<String>
+
+    /** Persists list order; [orderedPhraseIds] becomes sortOrder 0..n-1. */
+    suspend fun reorderPhrases(orderedPhraseIds: List<Long>)
 }
 
 interface PhraseGroupRepository {

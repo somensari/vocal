@@ -3,8 +3,7 @@ package org.openaac.vocal.feature.board
 import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.domain.model.PhraseGroup
-import org.openaac.vocal.core.domain.model.clusterPhrasesForBoard
-import org.openaac.vocal.core.domain.model.computeBoardGrid
+import org.openaac.vocal.core.domain.model.orderedPhrasesForBoard
 import org.openaac.vocal.core.domain.monitoring.MonitoringEvents
 import org.openaac.vocal.core.domain.repository.MonitoringRepository
 import org.openaac.vocal.core.domain.usecase.EnsureDefaultBoardUseCase
@@ -67,10 +66,9 @@ class BoardViewModel @Inject constructor(
             }
         },
     ) { board, phrases, groups ->
-        val grid = computeBoardGrid(phrases.size)
         BoardUiState(
             board = board,
-            phrases = clusterPhrasesForBoard(phrases, groups, columns = grid.columns),
+            phrases = orderedPhrasesForBoard(phrases),
             groups = groups,
             isLoading = board == null,
         )

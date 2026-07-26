@@ -10,6 +10,7 @@ import org.openaac.vocal.core.ui.theme.VocalTheme
 import org.openaac.vocal.core.ui.theme.VocalThemePresets
 import org.openaac.vocal.core.ui.theme.phraseGroupBackground
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,17 +18,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -47,20 +50,28 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingsRoute(
@@ -73,12 +84,13 @@ fun SettingsRoute(
         onAddPhrase = viewModel::startAddPhrase,
         onEditPhrase = viewModel::startEditPhrase,
         onDeletePhrase = viewModel::deletePhrase,
+        onMovePhraseUp = viewModel::movePhraseUp,
+        onMovePhraseDown = viewModel::movePhraseDown,
+        onReorderPhrases = viewModel::reorderPhrases,
         onDismissEditor = viewModel::dismissEditor,
         onSaveEditor = viewModel::saveEditor,
         onEditorLabelChange = viewModel::updateEditorLabel,
         onEditorSpokenTextChange = viewModel::updateEditorSpokenText,
-        onEditorRowChange = viewModel::updateEditorRow,
-        onEditorColumnChange = viewModel::updateEditorColumn,
         onEditorGroupChange = viewModel::updateEditorGroupId,
         onAddGroup = viewModel::startAddGroup,
         onRenameGroup = viewModel::startRenameGroup,
@@ -90,6 +102,9 @@ fun SettingsRoute(
         onSymbolCacheMaxSizeSelected = viewModel::setSymbolCacheMaxSize,
         onCleanImageCache = viewModel::cleanImageCache,
         onDismissCacheLimitDialog = viewModel::dismissCacheLimitDialog,
+        onRequestReset = viewModel::requestResetToStarter,
+        onDismissResetConfirm = viewModel::dismissResetConfirmDialog,
+        onConfirmReset = viewModel::confirmResetToStarter,
         onTestSpeech = viewModel::testSpeech,
         onClearMessage = viewModel::clearMessage,
         modifier = modifier,
@@ -103,12 +118,13 @@ fun SettingsScreen(
     onAddPhrase: () -> Unit,
     onEditPhrase: (Phrase) -> Unit,
     onDeletePhrase: (Phrase) -> Unit,
+    onMovePhraseUp: (Phrase) -> Unit,
+    onMovePhraseDown: (Phrase) -> Unit,
+    onReorderPhrases: (List<Long>) -> Unit,
     onDismissEditor: () -> Unit,
     onSaveEditor: () -> Unit,
     onEditorLabelChange: (String) -> Unit,
     onEditorSpokenTextChange: (String) -> Unit,
-    onEditorRowChange: (Int) -> Unit,
-    onEditorColumnChange: (Int) -> Unit,
     onEditorGroupChange: (Long?) -> Unit,
     onAddGroup: () -> Unit,
     onRenameGroup: (PhraseGroup) -> Unit,
@@ -120,6 +136,9 @@ fun SettingsScreen(
     onSymbolCacheMaxSizeSelected: (SymbolCacheMaxSizeMb) -> Unit,
     onCleanImageCache: () -> Unit,
     onDismissCacheLimitDialog: () -> Unit,
+    onRequestReset: () -> Unit,
+    onDismissResetConfirm: () -> Unit,
+    onConfirmReset: () -> Unit,
     onTestSpeech: () -> Unit,
     onClearMessage: () -> Unit,
     modifier: Modifier = Modifier,
@@ -143,6 +162,7 @@ fun SettingsScreen(
         SettingsMessage.GroupDeleted -> stringResource(R.string.settings_message_group_deleted)
         SettingsMessage.GroupLimitReached -> stringResource(R.string.settings_message_group_limit_reached)
         SettingsMessage.GroupNameRequired -> stringResource(R.string.settings_message_group_name_required)
+        SettingsMessage.BoardReset -> stringResource(R.string.settings_message_board_reset)
         null -> null
     }
 
@@ -220,16 +240,30 @@ fun SettingsScreen(
                 )
             }
 
+            item(key = "reset-board") {
+                ResetBoardSection(
+                    enabled = !uiState.isResettingBoard,
+                    onRequestReset = onRequestReset,
+                )
+            }
+
             item(key = "attribution") {
                 AttributionSection()
             }
 
-            items(uiState.phrases, key = { it.id }) { phrase ->
-                PhraseListItem(
-                    phrase = phrase,
-                    groupName = uiState.groups.firstOrNull { it.id == phrase.groupId }?.name,
-                    onEdit = { onEditPhrase(phrase) },
-                    onDelete = { onDeletePhrase(phrase) },
+            item(key = "phrases-header") {
+                PhrasesOrderHeader()
+            }
+
+            item(key = "phrases-list") {
+                ReorderablePhraseList(
+                    phrases = uiState.phrases,
+                    groups = uiState.groups,
+                    onEditPhrase = onEditPhrase,
+                    onDeletePhrase = onDeletePhrase,
+                    onMovePhraseUp = onMovePhraseUp,
+                    onMovePhraseDown = onMovePhraseDown,
+                    onReorderPhrases = onReorderPhrases,
                 )
             }
         }
@@ -244,8 +278,6 @@ fun SettingsScreen(
             onSave = onSaveEditor,
             onLabelChange = onEditorLabelChange,
             onSpokenTextChange = onEditorSpokenTextChange,
-            onRowChange = onEditorRowChange,
-            onColumnChange = onEditorColumnChange,
             onGroupChange = onEditorGroupChange,
         )
     }
@@ -261,6 +293,14 @@ fun SettingsScreen(
 
     if (uiState.showCacheLimitDialog) {
         CacheLimitDialog(onDismiss = onDismissCacheLimitDialog)
+    }
+
+    if (uiState.showResetConfirmDialog) {
+        ResetConfirmDialog(
+            isResetting = uiState.isResettingBoard,
+            onDismiss = onDismissResetConfirm,
+            onConfirm = onConfirmReset,
+        )
     }
 }
 
@@ -286,6 +326,177 @@ private fun DisabledAddPhraseFab(
             contentDescription = null,
         )
     }
+}
+
+@Composable
+private fun PhrasesOrderHeader() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.settings_phrases_title),
+            style = MaterialTheme.typography.titleLarge,
+        )
+        Text(
+            text = stringResource(R.string.settings_phrases_order_description),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+    }
+}
+
+@Composable
+private fun ReorderablePhraseList(
+    phrases: List<Phrase>,
+    groups: List<PhraseGroup>,
+    onEditPhrase: (Phrase) -> Unit,
+    onDeletePhrase: (Phrase) -> Unit,
+    onMovePhraseUp: (Phrase) -> Unit,
+    onMovePhraseDown: (Phrase) -> Unit,
+    onReorderPhrases: (List<Long>) -> Unit,
+) {
+    var localPhrases by remember(phrases) { mutableStateOf(phrases) }
+    LaunchedEffect(phrases) {
+        localPhrases = phrases
+    }
+
+    var draggingId by remember { mutableStateOf<Long?>(null) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var itemHeightPx by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
+    val fallbackHeightPx = with(density) { 96.dp.toPx() }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        localPhrases.forEachIndexed { index, phrase ->
+            val isDragging = draggingId == phrase.id
+            PhraseListItem(
+                phrase = phrase,
+                groupName = groups.firstOrNull { it.id == phrase.groupId }?.name,
+                canMoveUp = index > 0,
+                canMoveDown = index < localPhrases.lastIndex,
+                onEdit = { onEditPhrase(phrase) },
+                onDelete = { onDeletePhrase(phrase) },
+                onMoveUp = { onMovePhraseUp(phrase) },
+                onMoveDown = { onMovePhraseDown(phrase) },
+                dragHandleModifier = Modifier.pointerInput(phrase.id, localPhrases) {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = {
+                            draggingId = phrase.id
+                            dragOffsetY = 0f
+                        },
+                        onDragEnd = {
+                            draggingId = null
+                            dragOffsetY = 0f
+                            onReorderPhrases(localPhrases.map { it.id })
+                        },
+                        onDragCancel = {
+                            draggingId = null
+                            dragOffsetY = 0f
+                            localPhrases = phrases
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            dragOffsetY += dragAmount.y
+                            val height = itemHeightPx.takeIf { it > 0f } ?: fallbackHeightPx
+                            val from = localPhrases.indexOfFirst { it.id == phrase.id }
+                            if (from < 0) return@detectDragGesturesAfterLongPress
+                            val shift = (dragOffsetY / height).toInt()
+                            val to = (from + shift).coerceIn(0, localPhrases.lastIndex)
+                            if (to != from) {
+                                localPhrases = localPhrases.toMutableList().apply {
+                                    add(to, removeAt(from))
+                                }
+                                dragOffsetY -= (to - from) * height
+                            }
+                        },
+                    )
+                },
+                modifier = Modifier
+                    .zIndex(if (isDragging) 1f else 0f)
+                    .offset {
+                        IntOffset(
+                            x = 0,
+                            y = if (isDragging) dragOffsetY.roundToInt() else 0,
+                        )
+                    }
+                    .onGloballyPositioned { coordinates ->
+                        if (!isDragging) {
+                            itemHeightPx = coordinates.size.height.toFloat() +
+                                with(density) { 8.dp.toPx() }
+                        }
+                    },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ResetBoardSection(
+    enabled: Boolean,
+    onRequestReset: () -> Unit,
+) {
+    val resetDescription = stringResource(R.string.settings_reset_button)
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.settings_reset_title),
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Text(
+                text = stringResource(R.string.settings_reset_description),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            AacSecondaryButton(
+                label = stringResource(R.string.settings_reset_button),
+                onClick = onRequestReset,
+                enabled = enabled,
+                contentDescription = resetDescription,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = AacSecondaryTouchTarget),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ResetConfirmDialog(
+    isResetting: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = { if (!isResetting) onDismiss() },
+        title = { Text(stringResource(R.string.settings_reset_confirm_title)) },
+        text = { Text(stringResource(R.string.settings_reset_confirm_message)) },
+        confirmButton = {
+            AacSecondaryButton(
+                label = stringResource(R.string.settings_reset_confirm),
+                onClick = onConfirm,
+                enabled = !isResetting,
+                contentDescription = stringResource(R.string.settings_reset_confirm),
+            )
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isResetting,
+                modifier = Modifier.defaultMinSize(minHeight = AacSecondaryTouchTarget),
+            ) {
+                Text(stringResource(R.string.settings_reset_cancel))
+            }
+        },
+    )
 }
 
 @Composable
@@ -665,29 +876,48 @@ private fun BoardThemePreset.labelResId(): Int = when (this) {
 private fun PhraseListItem(
     phrase: Phrase,
     groupName: String?,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    dragHandleModifier: Modifier = Modifier,
+    modifier: Modifier = Modifier,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+            val dragHandleDescription = stringResource(
+                R.string.settings_drag_phrase_handle,
+                phrase.label,
+            )
+            Box(
+                modifier = dragHandleModifier
+                    .defaultMinSize(
+                        minWidth = AacSecondaryTouchTarget,
+                        minHeight = AacSecondaryTouchTarget,
+                    )
+                    .clearAndSetSemantics {
+                        contentDescription = dragHandleDescription
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DragHandle,
+                    contentDescription = null,
+                )
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = phrase.label, style = MaterialTheme.typography.titleLarge)
                 Text(
                     text = stringResource(R.string.settings_phrase_speaks, phrase.spokenText),
                     style = MaterialTheme.typography.bodyLarge,
-                )
-                Text(
-                    text = stringResource(
-                        R.string.settings_phrase_position,
-                        phrase.row,
-                        phrase.column,
-                    ),
-                    style = MaterialTheme.typography.labelLarge,
                 )
                 Text(
                     text = if (groupName != null) {
@@ -696,6 +926,38 @@ private fun PhraseListItem(
                         stringResource(R.string.settings_phrase_ungrouped)
                     },
                     style = MaterialTheme.typography.labelLarge,
+                )
+            }
+            IconButton(
+                onClick = onMoveUp,
+                enabled = canMoveUp,
+                modifier = Modifier.defaultMinSize(
+                    minWidth = AacSecondaryTouchTarget,
+                    minHeight = AacSecondaryTouchTarget,
+                ),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowUp,
+                    contentDescription = stringResource(
+                        R.string.settings_move_phrase_up,
+                        phrase.label,
+                    ),
+                )
+            }
+            IconButton(
+                onClick = onMoveDown,
+                enabled = canMoveDown,
+                modifier = Modifier.defaultMinSize(
+                    minWidth = AacSecondaryTouchTarget,
+                    minHeight = AacSecondaryTouchTarget,
+                ),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = stringResource(
+                        R.string.settings_move_phrase_down,
+                        phrase.label,
+                    ),
                 )
             }
             IconButton(
@@ -741,8 +1003,6 @@ private fun PhraseEditorDialog(
     onSave: () -> Unit,
     onLabelChange: (String) -> Unit,
     onSpokenTextChange: (String) -> Unit,
-    onRowChange: (Int) -> Unit,
-    onColumnChange: (Int) -> Unit,
     onGroupChange: (Long?) -> Unit,
 ) {
     AlertDialog(
@@ -770,26 +1030,6 @@ private fun PhraseEditorDialog(
                     onValueChange = onSpokenTextChange,
                     enabled = !isSaving,
                     label = { Text(stringResource(R.string.settings_field_spoken_text)) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = editor.row.toString(),
-                    onValueChange = { value ->
-                        onRowChange(value.toIntOrNull() ?: 0)
-                    },
-                    enabled = !isSaving,
-                    label = { Text(stringResource(R.string.settings_field_row)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = editor.column.toString(),
-                    onValueChange = { value ->
-                        onColumnChange(value.toIntOrNull() ?: 0)
-                    },
-                    enabled = !isSaving,
-                    label = { Text(stringResource(R.string.settings_field_column)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
@@ -887,8 +1127,8 @@ private fun SettingsScreenPreview() {
         SettingsScreen(
             uiState = SettingsUiState(
                 phrases = listOf(
-                    Phrase(1, 1, "Yes", "Yes", 0, 0, groupId = 1),
-                    Phrase(2, 1, "Help", "I need help", 0, 1, groupId = 1),
+                    Phrase(1, 1, "Yes", "Yes", sortOrder = 0, groupId = 1),
+                    Phrase(2, 1, "Help", "I need help", sortOrder = 1, groupId = 1),
                 ),
                 groups = listOf(
                     PhraseGroup(1, 1, "Basics", colorIndex = 0, sortOrder = 0),
@@ -897,12 +1137,13 @@ private fun SettingsScreenPreview() {
             onAddPhrase = {},
             onEditPhrase = {},
             onDeletePhrase = {},
+            onMovePhraseUp = {},
+            onMovePhraseDown = {},
+            onReorderPhrases = {},
             onDismissEditor = {},
             onSaveEditor = {},
             onEditorLabelChange = {},
             onEditorSpokenTextChange = {},
-            onEditorRowChange = {},
-            onEditorColumnChange = {},
             onEditorGroupChange = {},
             onAddGroup = {},
             onRenameGroup = {},
@@ -914,6 +1155,9 @@ private fun SettingsScreenPreview() {
             onSymbolCacheMaxSizeSelected = {},
             onCleanImageCache = {},
             onDismissCacheLimitDialog = {},
+            onRequestReset = {},
+            onDismissResetConfirm = {},
+            onConfirmReset = {},
             onTestSpeech = {},
             onClearMessage = {},
         )

@@ -51,8 +51,7 @@ class MapperTest {
             boardId = 1,
             label = "Water",
             spokenText = "I want water",
-            row = 0,
-            column = 1,
+            sortOrder = 1,
             iconPath = "vocal://bundled-icons/starter/water",
             audioPath = "/data/user/0/org.openaac.vocal/files/water.m4a",
             groupId = 5,
@@ -60,6 +59,7 @@ class MapperTest {
         val domain = entity.toDomain()
         assertEquals(entity, domain.toEntity())
         assertEquals(5L, domain.groupId)
+        assertEquals(1, domain.sortOrder)
     }
 
     @Test
@@ -69,8 +69,7 @@ class MapperTest {
             boardId = 1,
             label = "Yes",
             spokenText = "Yes",
-            row = 0,
-            column = 0,
+            sortOrder = 0,
         )
         val domain = entity.toDomain()
         assertNull(domain.iconPath)

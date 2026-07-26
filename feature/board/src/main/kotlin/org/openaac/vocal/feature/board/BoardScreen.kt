@@ -4,7 +4,9 @@ import org.openaac.vocal.core.domain.model.BundledPhraseIcons
 import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.domain.model.PhraseGroup
+import org.openaac.vocal.core.domain.model.columnMajorIndex
 import org.openaac.vocal.core.domain.model.computeBoardGrid
+import org.openaac.vocal.core.domain.model.orderedPhrasesForBoard
 import org.openaac.vocal.core.ui.components.AacCellButton
 import org.openaac.vocal.core.ui.theme.VocalTheme
 import org.openaac.vocal.core.ui.theme.boardColors
@@ -114,10 +116,8 @@ private fun BoardPhraseGrid(
     val gridColors = boardColors()
     val grid = computeBoardGrid(phrases.size)
     val groupsById = remember(groups) { groups.associateBy { it.id } }
-    // Phrases are already clustered by the ViewModel; keep row/column order.
-    val sortedPhrases = remember(phrases) {
-        phrases.sortedWith(compareBy<Phrase> { it.row }.thenBy { it.column })
-    }
+    // List order is the sole placement input; fill top-to-bottom, then left-to-right.
+    val sortedPhrases = remember(phrases) { orderedPhrasesForBoard(phrases) }
 
     Column(
         modifier = modifier
@@ -133,7 +133,11 @@ private fun BoardPhraseGrid(
                 horizontalArrangement = Arrangement.spacedBy(BoardGridGutter),
             ) {
                 for (columnIndex in 0 until grid.columns) {
-                    val slotIndex = rowIndex * grid.columns + columnIndex
+                    val slotIndex = columnMajorIndex(
+                        row = rowIndex,
+                        column = columnIndex,
+                        rows = grid.rows,
+                    )
                     val phrase = sortedPhrases.getOrNull(slotIndex)
                     if (phrase == null) {
                         Spacer(
@@ -238,7 +242,6 @@ private fun BoardScreenSeventeenPhrasesPreview() {
 }
 
 private fun sampleBoardUiState(phraseCount: Int): BoardUiState {
-    val grid = computeBoardGrid(phraseCount)
     val groups = listOf(
         PhraseGroup(id = 1, boardId = 1, name = "Basics", colorIndex = 0, sortOrder = 0),
         PhraseGroup(id = 2, boardId = 1, name = "Needs", colorIndex = 2, sortOrder = 1),
@@ -257,8 +260,7 @@ private fun sampleBoardUiState(phraseCount: Int): BoardUiState {
                 boardId = 1,
                 label = samplePhraseLabel(index),
                 spokenText = samplePhraseSpokenText(index),
-                row = zeroBasedIndex / grid.columns,
-                column = zeroBasedIndex % grid.columns,
+                sortOrder = zeroBasedIndex,
                 iconPath = samplePhraseIcon(index),
                 groupId = when (index) {
                     1, 2, 3 -> 1L

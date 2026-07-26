@@ -13,7 +13,7 @@ import org.openaac.vocal.core.data.local.entity.PhraseGroupEntity
 
 @Database(
     entities = [BoardEntity::class, PhraseGroupEntity::class, PhraseEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class VocalDatabase : RoomDatabase() {
@@ -81,6 +81,68 @@ abstract class VocalDatabase : RoomDatabase() {
                         `id`, `boardId`, `label`, `spokenText`,
                         `row`, `column`, `iconPath`, `audioPath`, NULL
                     FROM `phrases`
+                    """.trimIndent(),
+                )
+                db.execSQL("DROP TABLE `phrases`")
+                db.execSQL("ALTER TABLE `phrases_new` RENAME TO `phrases`")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_phrases_boardId` ON `phrases` (`boardId`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_phrases_groupId` ON `phrases` (`groupId`)",
+                )
+            }
+        }
+
+        /**
+         * Replaces sparse row/column coordinates with a single list [PhraseEntity.sortOrder].
+         * Existing phrases keep relative order from their previous row-major reading order.
+         */
+        internal val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `phrases_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `boardId` INTEGER NOT NULL,
+                        `label` TEXT NOT NULL,
+                        `spokenText` TEXT NOT NULL,
+                        `sortOrder` INTEGER NOT NULL,
+                        `iconPath` TEXT,
+                        `audioPath` TEXT,
+                        `groupId` INTEGER,
+                        FOREIGN KEY(`boardId`) REFERENCES `boards`(`id`)
+                            ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`groupId`) REFERENCES `phrase_groups`(`id`)
+                            ON UPDATE NO ACTION ON DELETE SET NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `phrases_new` (
+                        `id`, `boardId`, `label`, `spokenText`,
+                        `sortOrder`, `iconPath`, `audioPath`, `groupId`
+                    )
+                    SELECT
+                        p.`id`,
+                        p.`boardId`,
+                        p.`label`,
+                        p.`spokenText`,
+                        (
+                            SELECT COUNT(*)
+                            FROM `phrases` AS o
+                            WHERE o.`boardId` = p.`boardId`
+                              AND (
+                                o.`row` < p.`row`
+                                OR (o.`row` = p.`row` AND o.`column` < p.`column`)
+                                OR (o.`row` = p.`row` AND o.`column` = p.`column` AND o.`id` < p.`id`)
+                              )
+                        ),
+                        p.`iconPath`,
+                        p.`audioPath`,
+                        p.`groupId`
+                    FROM `phrases` AS p
                     """.trimIndent(),
                 )
                 db.execSQL("DROP TABLE `phrases`")
