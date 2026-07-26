@@ -5,10 +5,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.times
 import org.openaac.vocal.core.domain.model.BoardThemePreset
 import org.openaac.vocal.core.ui.accessibility.AacMinTouchTarget
 import org.openaac.vocal.core.ui.theme.VocalTheme
@@ -40,7 +40,9 @@ import org.openaac.vocal.core.ui.theme.boardColors
 private val BoardCellCornerRadius = 4.dp
 private val LargeCellBreakpoint = 144.dp
 private val MediumCellBreakpoint = 96.dp
-private val CellIconSize = 40.dp
+/** Floor for icon-forward cells so icons stay dominant vs. the previous 40dp size. */
+private val MinDominantIconSize = 48.dp
+private val MaxDominantIconSize = 96.dp
 
 @Composable
 fun AacCellButton(
@@ -65,32 +67,44 @@ fun AacCellButton(
         contentColor = colors.boardCellContent,
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val labelStyle = aacCellLabelStyle(minOf(maxWidth, maxHeight))
+            val cellMin = minOf(maxWidth, maxHeight)
+            val hasIcon = iconBitmap != null || iconResId != null
+            val labelStyle = aacCellLabelStyle(cellMin)
+            val iconSize = if (hasIcon) aacCellIconSize(cellMin) else 0.dp
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(8.dp),
+                    .padding(horizontal = 6.dp, vertical = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                when {
-                    iconBitmap != null -> {
-                        Image(
-                            bitmap = iconBitmap,
-                            contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.size(CellIconSize),
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
-                    iconResId != null -> {
-                        Icon(
-                            painter = painterResource(iconResId),
-                            contentDescription = null,
-                            tint = Color.Unspecified,
-                            modifier = Modifier.size(CellIconSize),
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
+                if (hasIcon) {
+                    // Icon-forward: icon claims most of the cell; label stays readable below.
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        when {
+                            iconBitmap != null -> {
+                                Image(
+                                    bitmap = iconBitmap,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.size(iconSize),
+                                )
+                            }
+                            iconResId != null -> {
+                                Icon(
+                                    painter = painterResource(iconResId),
+                                    contentDescription = null,
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(iconSize),
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -99,19 +113,33 @@ fun AacCellButton(
                     style = labelStyle,
                     color = colors.boardCellContent,
                     textAlign = TextAlign.Center,
-                    maxLines = 3,
+                    maxLines = if (hasIcon) 2 else 3,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }
     }
 }
 
+/**
+ * Scales the phrase icon with cell size so tablets show a dominant symbol
+ * while still leaving room for a readable label.
+ */
+private fun aacCellIconSize(cellSize: Dp): Dp {
+    val target = when {
+        cellSize >= LargeCellBreakpoint -> cellSize * 0.48f
+        cellSize >= MediumCellBreakpoint -> cellSize * 0.42f
+        else -> cellSize * 0.38f
+    }
+    return target.coerceIn(MinDominantIconSize, MaxDominantIconSize)
+}
+
 @Composable
 private fun aacCellLabelStyle(cellSize: Dp): TextStyle = when {
-    cellSize >= LargeCellBreakpoint -> MaterialTheme.typography.headlineMedium
-    cellSize >= MediumCellBreakpoint -> MaterialTheme.typography.titleLarge
-    else -> MaterialTheme.typography.titleMedium
+    cellSize >= LargeCellBreakpoint -> MaterialTheme.typography.titleLarge
+    cellSize >= MediumCellBreakpoint -> MaterialTheme.typography.titleMedium
+    else -> MaterialTheme.typography.titleSmall
 }
 
 @Composable
