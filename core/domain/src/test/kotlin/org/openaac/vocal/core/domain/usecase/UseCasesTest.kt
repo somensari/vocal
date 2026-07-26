@@ -31,8 +31,7 @@ class UseCasesTest {
             boardId = 1,
             label = "Water",
             spokenText = "I want water",
-            row = 0,
-            column = 0,
+            sortOrder = 0,
             audioPath = "/files/water.m4a",
         )
 
@@ -51,8 +50,7 @@ class UseCasesTest {
             boardId = 1,
             label = "Yes",
             spokenText = "Yes",
-            row = 0,
-            column = 0,
+            sortOrder = 0,
         )
 
         val id = SavePhraseUseCase(phrases, monitoring).invoke(phrase)
@@ -96,7 +94,7 @@ class UseCasesTest {
     fun observeBoardPhrasesUseCase_emitsPhrasesForBoardId() = runTest {
         val boards = FakeBoardRepository()
         val phrases = listOf(
-            Phrase(id = 1, boardId = 2, label = "Yes", spokenText = "Yes", row = 0, column = 0),
+            Phrase(id = 1, boardId = 2, label = "Yes", spokenText = "Yes", sortOrder = 0),
         )
         boards.phrasesByBoardId[2L] = phrases
 
@@ -194,6 +192,7 @@ class UseCasesTest {
     private class FakePhraseRepository : PhraseRepository {
         var lastSaved: Phrase? = null
         var lastDeletedId: Long? = null
+        var lastReorderIds: List<Long>? = null
 
         override fun observeAllPhrases(): Flow<List<Phrase>> = flowOf(emptyList())
 
@@ -209,6 +208,10 @@ class UseCasesTest {
         }
 
         override suspend fun getAllIconPaths(): List<String> = emptyList()
+
+        override suspend fun reorderPhrases(orderedPhraseIds: List<Long>) {
+            lastReorderIds = orderedPhraseIds
+        }
     }
 
     private class FakeUserPreferencesRepository : UserPreferencesRepository {
@@ -243,6 +246,8 @@ class UseCasesTest {
             defaultBoard ?: error("default board not set")
 
         override suspend fun updateBoard(board: Board) = Unit
+
+        override suspend fun resetToStarterBoard() = Unit
     }
 
     private class FakePhraseGroupRepository : PhraseGroupRepository {

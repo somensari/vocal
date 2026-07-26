@@ -54,6 +54,16 @@ class UpdateBoardUseCase @Inject constructor(
     suspend operator fun invoke(board: Board) = boardRepository.updateBoard(board)
 }
 
+/**
+ * Caregiver-only: after confirmation in Settings, restores the starter board
+ * (phrases + groups + bundled icons) and deletes custom local media files.
+ */
+class ResetBoardToStarterUseCase @Inject constructor(
+    private val boardRepository: BoardRepository,
+) {
+    suspend operator fun invoke() = boardRepository.resetToStarterBoard()
+}
+
 class SpeakPhraseUseCase @Inject constructor(
     private val speechRepository: SpeechRepository,
     private val monitoringRepository: MonitoringRepository,
@@ -179,6 +189,15 @@ class DeletePhraseUseCase @Inject constructor(
         } finally {
             monitoringRepository.endInteraction(interactionId)
         }
+    }
+}
+
+/** Persists caregiver phrase list order used for column-major board placement. */
+class ReorderPhrasesUseCase @Inject constructor(
+    private val phraseRepository: PhraseRepository,
+) {
+    suspend operator fun invoke(orderedPhraseIds: List<Long>) {
+        phraseRepository.reorderPhrases(orderedPhraseIds)
     }
 }
 

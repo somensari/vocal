@@ -7,9 +7,6 @@ import org.openaac.vocal.core.data.local.entity.BoardEntity
 import org.openaac.vocal.core.data.local.entity.PhraseEntity
 import org.openaac.vocal.core.data.local.entity.PhraseGroupEntity
 import org.openaac.vocal.core.domain.model.BundledPhraseIcons
-import org.openaac.vocal.core.domain.model.clusterPhrasesForBoard
-import org.openaac.vocal.core.domain.model.Phrase
-import org.openaac.vocal.core.domain.model.PhraseGroup
 
 internal object DefaultSeedData {
     const val DEFAULT_BOARD_NAME = "My Board"
@@ -30,10 +27,10 @@ internal object DefaultSeedData {
 
     /**
      * Thirty-two common AAC starter phrases with bundled icons and pre-assigned groups.
-     * Fresh installs seed these offline; no network is required for board use.
+     * Fresh installs and caregiver reset seed these offline; no network is required.
      *
-     * Row/column values below are initial placeholders; [ensureDefaultBoard] reassigns
-     * positions via [clusterPhrasesForBoard] so same-group phrases sit together.
+     * List order becomes [PhraseEntity.sortOrder]; the board places cells column-major
+     * (top-to-bottom, then left-to-right) from this order.
      */
     val starterPhrases = listOf(
         // Basics
@@ -116,11 +113,24 @@ internal object DefaultSeedData {
                 isDefault = true,
             )
 
+        seedStarterContent(board.id, phraseDao, phraseGroupDao)
+        return board
+    }
+
+    /**
+     * Inserts starter groups and phrases for [boardId]. Caller must clear existing
+     * board content before calling when performing a caregiver reset.
+     */
+    suspend fun seedStarterContent(
+        boardId: Long,
+        phraseDao: PhraseDao,
+        phraseGroupDao: PhraseGroupDao,
+    ) {
         val groupIdsByName = linkedMapOf<String, Long>()
         starterGroups.forEach { seed ->
             val id = phraseGroupDao.insert(
                 PhraseGroupEntity(
-                    boardId = board.id,
+                    boardId = boardId,
                     name = seed.name,
                     colorIndex = seed.colorIndex,
                     sortOrder = seed.sortOrder,
@@ -129,47 +139,18 @@ internal object DefaultSeedData {
             groupIdsByName[seed.name] = id
         }
 
-        val domainGroups = starterGroups.map { seed ->
-            PhraseGroup(
-                id = groupIdsByName.getValue(seed.name),
-                boardId = board.id,
-                name = seed.name,
-                colorIndex = seed.colorIndex,
-                sortOrder = seed.sortOrder,
-            )
-        }
-        val domainPhrases = starterPhrases.mapIndexed { index, seed ->
-            Phrase(
-                id = index.toLong() + 1,
-                boardId = board.id,
-                label = seed.label,
-                spokenText = seed.spokenText,
-                row = 0,
-                column = index,
-                iconPath = seed.iconPath,
-                groupId = seed.groupName?.let { groupIdsByName[it] },
-            )
-        }
-        val clustered = clusterPhrasesForBoard(
-            phrases = domainPhrases,
-            groups = domainGroups,
-            columns = DEFAULT_COLUMNS,
-        )
-
-        clustered.forEach { phrase ->
+        starterPhrases.forEachIndexed { index, seed ->
             phraseDao.insert(
                 PhraseEntity(
-                    boardId = board.id,
-                    label = phrase.label,
-                    spokenText = phrase.spokenText,
-                    row = phrase.row,
-                    column = phrase.column,
-                    iconPath = phrase.iconPath,
-                    groupId = phrase.groupId,
+                    boardId = boardId,
+                    label = seed.label,
+                    spokenText = seed.spokenText,
+                    sortOrder = index,
+                    iconPath = seed.iconPath,
+                    groupId = seed.groupName?.let { groupIdsByName[it] },
                 ),
             )
         }
-        return board
     }
 
     private suspend fun backfillStarterPhraseIcons(boardId: Long, phraseDao: PhraseDao) {

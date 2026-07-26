@@ -24,13 +24,19 @@ data class PhraseGroup(
     val sortOrder: Int,
 )
 
+/**
+ * A speakable AAC phrase on a board.
+ *
+ * [sortOrder] is the sole caregiver-defined placement input. The main board
+ * fills the auto grid top-to-bottom, then left-to-right (column-major) by this
+ * order. Groups only tint cells; they do not reorder placement.
+ */
 data class Phrase(
     val id: Long,
     val boardId: Long,
     val label: String,
     val spokenText: String,
-    val row: Int,
-    val column: Int,
+    val sortOrder: Int,
     val iconPath: String? = null,
     val audioPath: String? = null,
     /** Null when the phrase is ungrouped. At most one group per phrase. */

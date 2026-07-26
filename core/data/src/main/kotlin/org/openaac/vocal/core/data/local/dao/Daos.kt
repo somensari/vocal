@@ -30,10 +30,13 @@ interface BoardDao {
 
 @Dao
 interface PhraseDao {
-    @Query("SELECT * FROM phrases WHERE boardId = :boardId ORDER BY row, column")
+    @Query("SELECT * FROM phrases WHERE boardId = :boardId ORDER BY sortOrder, id")
     fun observePhrasesForBoard(boardId: Long): Flow<List<PhraseEntity>>
 
-    @Query("SELECT * FROM phrases ORDER BY boardId, row, column")
+    @Query("SELECT * FROM phrases WHERE boardId = :boardId ORDER BY sortOrder, id")
+    suspend fun getPhrasesForBoard(boardId: Long): List<PhraseEntity>
+
+    @Query("SELECT * FROM phrases ORDER BY boardId, sortOrder, id")
     fun observeAllPhrases(): Flow<List<PhraseEntity>>
 
     @Query("SELECT * FROM phrases WHERE id = :id")
@@ -65,11 +68,20 @@ interface PhraseDao {
     @Query("UPDATE phrases SET groupId = NULL WHERE groupId = :groupId")
     suspend fun clearGroupAssignments(groupId: Long)
 
+    @Query("UPDATE phrases SET sortOrder = :sortOrder WHERE id = :id")
+    suspend fun updateSortOrder(id: Long, sortOrder: Int)
+
     @Query("DELETE FROM phrases WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("DELETE FROM phrases WHERE boardId = :boardId")
+    suspend fun deleteAllForBoard(boardId: Long)
+
     @Query("SELECT iconPath FROM phrases WHERE iconPath IS NOT NULL")
     suspend fun getAllIconPaths(): List<String>
+
+    @Query("SELECT COALESCE(MAX(sortOrder), -1) FROM phrases WHERE boardId = :boardId")
+    suspend fun maxSortOrder(boardId: Long): Int
 }
 
 @Dao
@@ -94,4 +106,7 @@ interface PhraseGroupDao {
 
     @Query("DELETE FROM phrase_groups WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("DELETE FROM phrase_groups WHERE boardId = :boardId")
+    suspend fun deleteAllForBoard(boardId: Long)
 }
