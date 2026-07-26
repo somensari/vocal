@@ -8,6 +8,7 @@ import org.openaac.vocal.core.domain.model.PhraseGroup
 import org.openaac.vocal.core.domain.model.SavePhraseWithSymbolResult
 import org.openaac.vocal.core.domain.model.SymbolCacheMaxSizeMb
 import org.openaac.vocal.core.domain.model.SymbolCacheUsage
+import org.openaac.vocal.core.domain.model.orderedPhrasesForBoard
 import org.openaac.vocal.core.domain.usecase.AssignPhraseGroupUseCase
 import org.openaac.vocal.core.domain.usecase.CleanSymbolCacheUseCase
 import org.openaac.vocal.core.domain.monitoring.MonitoringEvents
@@ -22,6 +23,8 @@ import org.openaac.vocal.core.domain.usecase.ObserveBoardThemePresetUseCase
 import org.openaac.vocal.core.domain.usecase.ObservePhraseGroupsUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveSymbolCacheMaxSizeUseCase
 import org.openaac.vocal.core.domain.usecase.RenamePhraseGroupUseCase
+import org.openaac.vocal.core.domain.usecase.ReorderPhrasesUseCase
+import org.openaac.vocal.core.domain.usecase.ResetBoardToStarterUseCase
 import org.openaac.vocal.core.domain.usecase.SavePhraseWithSymbolUseCase
 import org.openaac.vocal.core.domain.usecase.SetBoardThemePresetUseCase
 import org.openaac.vocal.core.domain.usecase.SetSymbolCacheMaxSizeUseCase
@@ -47,8 +50,7 @@ data class PhraseEditorState(
     val boardId: Long = 0,
     val label: String = "",
     val spokenText: String = "",
-    val row: Int = 0,
-    val column: Int = 0,
+    val sortOrder: Int = 0,
     val groupId: Long? = null,
 )
 
@@ -71,6 +73,7 @@ enum class SettingsMessage {
     GroupDeleted,
     GroupLimitReached,
     GroupNameRequired,
+    BoardReset,
 }
 
 data class SettingsUiState(
@@ -83,7 +86,9 @@ data class SettingsUiState(
     val groupEditor: GroupEditorState? = null,
     val message: SettingsMessage? = null,
     val showCacheLimitDialog: Boolean = false,
+    val showResetConfirmDialog: Boolean = false,
     val isSavingPhrase: Boolean = false,
+    val isResettingBoard: Boolean = false,
     val canAddPhrase: Boolean = true,
     val canAddGroup: Boolean = true,
 )
@@ -98,6 +103,8 @@ class SettingsViewModel @Inject constructor(
     private val ensureDefaultBoardUseCase: EnsureDefaultBoardUseCase,
     private val savePhraseWithSymbolUseCase: SavePhraseWithSymbolUseCase,
     private val deletePhraseUseCase: DeletePhraseUseCase,
+    private val reorderPhrasesUseCase: ReorderPhrasesUseCase,
+    private val resetBoardToStarterUseCase: ResetBoardToStarterUseCase,
     private val createPhraseGroupUseCase: CreatePhraseGroupUseCase,
     private val renamePhraseGroupUseCase: RenamePhraseGroupUseCase,
     private val deletePhraseGroupUseCase: DeletePhraseGroupUseCase,
@@ -114,7 +121,9 @@ class SettingsViewModel @Inject constructor(
     private val _groupEditor = MutableStateFlow<GroupEditorState?>(null)
     private val _message = MutableStateFlow<SettingsMessage?>(null)
     private val _showCacheLimitDialog = MutableStateFlow(false)
+    private val _showResetConfirmDialog = MutableStateFlow(false)
     private val _isSavingPhrase = MutableStateFlow(false)
+    private val _isResettingBoard = MutableStateFlow(false)
     private val _symbolCacheUsage = MutableStateFlow(
         SymbolCacheUsage(0L, SymbolCacheMaxSizeMb.Default.bytes),
     )
@@ -132,29 +141,43 @@ class SettingsViewModel @Inject constructor(
             observeSymbolCacheMaxSizeUseCase(),
             _symbolCacheUsage,
         ) { phrases, groups, boardThemePreset, cacheMaxSize, cacheUsage ->
-            PhrasesGroupsThemeCache(phrases, groups, boardThemePreset, cacheMaxSize, cacheUsage)
+            PhrasesGroupsThemeCache(
+                phrases = orderedPhrasesForBoard(phrases),
+                groups = groups,
+                boardThemePreset = boardThemePreset,
+                cacheMaxSize = cacheMaxSize,
+                cacheUsage = cacheUsage,
+            )
         },
         combine(
             _editor,
             _groupEditor,
             _message,
             _showCacheLimitDialog,
-            _isSavingPhrase,
-        ) { editor, groupEditor, message, limitDialog, saving ->
-            EditorFlags(editor, groupEditor, message, limitDialog, saving)
+            _showResetConfirmDialog,
+        ) { editor, groupEditor, message, limitDialog, resetDialog ->
+            DialogFlags(editor, groupEditor, message, limitDialog, resetDialog)
         },
-    ) { phrasesGroupsThemeCache, editorFlags ->
+        combine(
+            _isSavingPhrase,
+            _isResettingBoard,
+        ) { saving, resetting ->
+            SavingFlags(saving, resetting)
+        },
+    ) { phrasesGroupsThemeCache, dialogFlags, savingFlags ->
         SettingsUiState(
             phrases = phrasesGroupsThemeCache.phrases,
             groups = phrasesGroupsThemeCache.groups,
             selectedBoardThemePreset = phrasesGroupsThemeCache.boardThemePreset,
             selectedSymbolCacheMaxSize = phrasesGroupsThemeCache.cacheMaxSize,
             symbolCacheUsage = phrasesGroupsThemeCache.cacheUsage,
-            editor = editorFlags.editor,
-            groupEditor = editorFlags.groupEditor,
-            message = editorFlags.message,
-            showCacheLimitDialog = editorFlags.showCacheLimitDialog,
-            isSavingPhrase = editorFlags.isSavingPhrase,
+            editor = dialogFlags.editor,
+            groupEditor = dialogFlags.groupEditor,
+            message = dialogFlags.message,
+            showCacheLimitDialog = dialogFlags.showCacheLimitDialog,
+            showResetConfirmDialog = dialogFlags.showResetConfirmDialog,
+            isSavingPhrase = savingFlags.isSavingPhrase,
+            isResettingBoard = savingFlags.isResettingBoard,
             canAddPhrase = phrasesGroupsThemeCache.phrases.size < MAX_BOARD_PHRASES,
             canAddGroup = phrasesGroupsThemeCache.groups.size < MAX_PHRASE_GROUPS,
         )
@@ -197,6 +220,33 @@ class SettingsViewModel @Inject constructor(
         _showCacheLimitDialog.value = false
     }
 
+    fun requestResetToStarter() {
+        if (_isResettingBoard.value) return
+        _showResetConfirmDialog.value = true
+    }
+
+    fun dismissResetConfirmDialog() {
+        if (_isResettingBoard.value) return
+        _showResetConfirmDialog.value = false
+    }
+
+    fun confirmResetToStarter() {
+        if (_isResettingBoard.value) return
+        viewModelScope.launch {
+            _isResettingBoard.value = true
+            try {
+                resetBoardToStarterUseCase()
+                _showResetConfirmDialog.value = false
+                _editor.value = null
+                _groupEditor.value = null
+                _message.value = SettingsMessage.BoardReset
+                refreshCacheUsage()
+            } finally {
+                _isResettingBoard.value = false
+            }
+        }
+    }
+
     fun startAddPhrase() {
         if (uiState.value.phrases.size >= MAX_BOARD_PHRASES) {
             _message.value = SettingsMessage.PhraseLimitReached
@@ -212,8 +262,7 @@ class SettingsViewModel @Inject constructor(
             boardId = phrase.boardId,
             label = phrase.label,
             spokenText = phrase.spokenText,
-            row = phrase.row,
-            column = phrase.column,
+            sortOrder = phrase.sortOrder,
             groupId = phrase.groupId,
         )
         _message.value = null
@@ -225,14 +274,6 @@ class SettingsViewModel @Inject constructor(
 
     fun updateEditorSpokenText(value: String) {
         _editor.update { it?.copy(spokenText = value) }
-    }
-
-    fun updateEditorRow(value: Int) {
-        _editor.update { it?.copy(row = value.coerceAtLeast(0)) }
-    }
-
-    fun updateEditorColumn(value: Int) {
-        _editor.update { it?.copy(column = value.coerceAtLeast(0)) }
     }
 
     fun updateEditorGroupId(groupId: Long?) {
@@ -267,8 +308,7 @@ class SettingsViewModel @Inject constructor(
                         boardId = editor.boardId.takeIf { it > 0 } ?: defaultBoardId,
                         label = editor.label.trim(),
                         spokenText = editor.spokenText.trim(),
-                        row = editor.row,
-                        column = editor.column,
+                        sortOrder = editor.sortOrder,
                         groupId = editor.groupId,
                     ),
                 )
@@ -298,6 +338,39 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             deletePhraseUseCase(phrase.id)
             _message.value = SettingsMessage.PhraseDeleted
+        }
+    }
+
+    fun movePhraseUp(phrase: Phrase) {
+        val ordered = uiState.value.phrases
+        val index = ordered.indexOfFirst { it.id == phrase.id }
+        if (index <= 0) return
+        val reordered = ordered.toMutableList().apply {
+            add(index - 1, removeAt(index))
+        }
+        persistOrder(reordered)
+    }
+
+    fun movePhraseDown(phrase: Phrase) {
+        val ordered = uiState.value.phrases
+        val index = ordered.indexOfFirst { it.id == phrase.id }
+        if (index < 0 || index >= ordered.lastIndex) return
+        val reordered = ordered.toMutableList().apply {
+            add(index + 1, removeAt(index))
+        }
+        persistOrder(reordered)
+    }
+
+    fun reorderPhrases(orderedPhraseIds: List<Long>) {
+        if (orderedPhraseIds.isEmpty()) return
+        viewModelScope.launch {
+            reorderPhrasesUseCase(orderedPhraseIds)
+        }
+    }
+
+    private fun persistOrder(phrases: List<Phrase>) {
+        viewModelScope.launch {
+            reorderPhrasesUseCase(phrases.map { it.id })
         }
     }
 
@@ -417,12 +490,17 @@ class SettingsViewModel @Inject constructor(
         val cacheUsage: SymbolCacheUsage,
     )
 
-    private data class EditorFlags(
+    private data class DialogFlags(
         val editor: PhraseEditorState?,
         val groupEditor: GroupEditorState?,
         val message: SettingsMessage?,
         val showCacheLimitDialog: Boolean,
+        val showResetConfirmDialog: Boolean,
+    )
+
+    private data class SavingFlags(
         val isSavingPhrase: Boolean,
+        val isResettingBoard: Boolean,
     )
 
     companion object {
