@@ -216,7 +216,7 @@ class UseCasesTest {
 
     private class FakeUserPreferencesRepository : UserPreferencesRepository {
         var lastPreset: BoardThemePreset? = null
-        var lastSelectedBoardId: Long? = null
+        var savedLastSelectedBoardId: Long? = null
 
         override val speechRate: Flow<Float> = flowOf(1f)
 
@@ -236,7 +236,7 @@ class UseCasesTest {
         override suspend fun setSymbolCacheMaxSizeMb(maxSize: SymbolCacheMaxSizeMb) = Unit
 
         override suspend fun setLastSelectedBoardId(boardId: Long?) {
-            lastSelectedBoardId = boardId
+            savedLastSelectedBoardId = boardId
         }
     }
 
