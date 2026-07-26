@@ -80,7 +80,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.hilt.navigation.compose)
-    implementation(libs.newrelic.android.agent)
+    implementation(libs.nr.android.agent)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
