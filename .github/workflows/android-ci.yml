@@ -45,7 +45,5 @@ jobs:
         env:
           NEW_RELIC_ENABLED: ${{ vars.NEW_RELIC_ENABLED || 'false' }}
           NEW_RELIC_APPLICATION_TOKEN: ${{ secrets.NEW_RELIC_APPLICATION_TOKEN }}
-        run: ./scripts/ci.sh
-        env:
-          NEW_RELIC_ENABLED: ${{ vars.NEW_RELIC_ENABLED }}
           NEW_RELIC_TOKEN: ${{ secrets.NEW_RELIC_TOKEN }}
+        run: ./scripts/ci.sh
