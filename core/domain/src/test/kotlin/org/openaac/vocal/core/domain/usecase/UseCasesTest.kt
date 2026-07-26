@@ -216,6 +216,7 @@ class UseCasesTest {
 
     private class FakeUserPreferencesRepository : UserPreferencesRepository {
         var lastPreset: BoardThemePreset? = null
+        var lastSelectedBoardId: Long? = null
 
         override val speechRate: Flow<Float> = flowOf(1f)
 
@@ -224,6 +225,8 @@ class UseCasesTest {
         override val symbolCacheMaxSizeMb: Flow<SymbolCacheMaxSizeMb> =
             flowOf(SymbolCacheMaxSizeMb.Default)
 
+        override val lastSelectedBoardId: Flow<Long?> = flowOf(null)
+
         override suspend fun setSpeechRate(rate: Float) = Unit
 
         override suspend fun setBoardThemePreset(preset: BoardThemePreset) {
@@ -231,19 +234,33 @@ class UseCasesTest {
         }
 
         override suspend fun setSymbolCacheMaxSizeMb(maxSize: SymbolCacheMaxSizeMb) = Unit
+
+        override suspend fun setLastSelectedBoardId(boardId: Long?) {
+            lastSelectedBoardId = boardId
+        }
     }
 
     private class FakeBoardRepository : BoardRepository {
         var defaultBoard: Board? = null
+        val boardsById = mutableMapOf<Long, Board>()
         val phrasesByBoardId = mutableMapOf<Long, List<Phrase>>()
 
         override fun observeDefaultBoard(): Flow<Board?> = flowOf(defaultBoard)
+
+        override fun observeBoard(boardId: Long): Flow<Board?> =
+            flowOf(boardsById[boardId] ?: defaultBoard?.takeIf { it.id == boardId })
+
+        override fun observeAllBoards(): Flow<List<Board>> =
+            flowOf(listOfNotNull(defaultBoard) + boardsById.values.filter { it.id != defaultBoard?.id })
 
         override fun observePhrases(boardId: Long): Flow<List<Phrase>> =
             flowOf(phrasesByBoardId[boardId].orEmpty())
 
         override suspend fun ensureDefaultBoard(): Board =
             defaultBoard ?: error("default board not set")
+
+        override suspend fun getBoard(boardId: Long): Board? =
+            boardsById[boardId] ?: defaultBoard?.takeIf { it.id == boardId }
 
         override suspend fun updateBoard(board: Board) = Unit
 

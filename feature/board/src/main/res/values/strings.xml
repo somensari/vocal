@@ -4,4 +4,8 @@
     <string name="board_empty_message">No phrases yet. Ask a caregiver to add some in Settings.</string>
     <!-- TalkBack: spoken text first, then group name so membership is not color-only. -->
     <string name="board_phrase_grouped_content_description">%1$s, %2$s</string>
+    <!-- TalkBack: folder cells are navigation, not speakable phrases. -->
+    <string name="board_folder_content_description">Open %1$s</string>
+    <string name="board_home_content_description">Go to Home board</string>
+    <string name="board_home_label">Home</string>
 </resources>

@@ -6,7 +6,9 @@ import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.domain.model.PhraseGroup
 import org.openaac.vocal.core.domain.model.columnMajorIndex
 import org.openaac.vocal.core.domain.model.computeBoardGrid
+import org.openaac.vocal.core.domain.model.isFolderCell
 import org.openaac.vocal.core.domain.model.orderedPhrasesForBoard
+import org.openaac.vocal.core.ui.accessibility.AacSecondaryTouchTarget
 import org.openaac.vocal.core.ui.components.AacCellButton
 import org.openaac.vocal.core.ui.theme.VocalTheme
 import org.openaac.vocal.core.ui.theme.boardColors
@@ -17,11 +19,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,6 +38,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -47,7 +56,8 @@ fun BoardRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     BoardScreen(
         uiState = uiState,
-        onPhraseSelected = viewModel::onPhraseSelected,
+        onCellSelected = viewModel::onCellSelected,
+        onGoHome = viewModel::onGoHome,
         resolveCachedIconFilePath = viewModel::resolveCachedIconFilePath,
         modifier = modifier,
     )
@@ -56,7 +66,8 @@ fun BoardRoute(
 @Composable
 fun BoardScreen(
     uiState: BoardUiState,
-    onPhraseSelected: (Phrase) -> Unit,
+    onCellSelected: (Phrase) -> Unit,
+    onGoHome: () -> Unit,
     modifier: Modifier = Modifier,
     resolveCachedIconFilePath: (String?) -> String? = { null },
 ) {
@@ -65,10 +76,10 @@ fun BoardScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        Text(
-            text = uiState.board?.name ?: stringResource(R.string.board_title_default),
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        BoardTopBar(
+            boardName = uiState.board?.name ?: stringResource(R.string.board_title_default),
+            showHomeControl = uiState.showHomeControl,
+            onGoHome = onGoHome,
         )
 
         when {
@@ -94,7 +105,7 @@ fun BoardScreen(
                 BoardPhraseGrid(
                     phrases = uiState.phrases,
                     groups = uiState.groups,
-                    onPhraseSelected = onPhraseSelected,
+                    onCellSelected = onCellSelected,
                     resolveCachedIconFilePath = resolveCachedIconFilePath,
                     modifier = Modifier
                         .weight(1f)
@@ -106,10 +117,50 @@ fun BoardScreen(
 }
 
 @Composable
+private fun BoardTopBar(
+    boardName: String,
+    showHomeControl: Boolean,
+    onGoHome: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (showHomeControl) {
+            val homeDescription = stringResource(R.string.board_home_content_description)
+            IconButton(
+                onClick = onGoHome,
+                modifier = Modifier
+                    .defaultMinSize(
+                        minWidth = AacSecondaryTouchTarget,
+                        minHeight = AacSecondaryTouchTarget,
+                    )
+                    .semantics { contentDescription = homeDescription },
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Home,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onBackground,
+                )
+            }
+        }
+        Text(
+            text = boardName,
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+        )
+    }
+}
+
+@Composable
 private fun BoardPhraseGrid(
     phrases: List<Phrase>,
     groups: List<PhraseGroup>,
-    onPhraseSelected: (Phrase) -> Unit,
+    onCellSelected: (Phrase) -> Unit,
     resolveCachedIconFilePath: (String?) -> String?,
     modifier: Modifier = Modifier,
 ) {
@@ -150,7 +201,7 @@ private fun BoardPhraseGrid(
                         PhraseBoardCell(
                             phrase = phrase,
                             group = phrase.groupId?.let { groupsById[it] },
-                            onPhraseSelected = onPhraseSelected,
+                            onCellSelected = onCellSelected,
                             resolveCachedIconFilePath = resolveCachedIconFilePath,
                             modifier = Modifier
                                 .weight(1f)
@@ -167,7 +218,7 @@ private fun BoardPhraseGrid(
 private fun PhraseBoardCell(
     phrase: Phrase,
     group: PhraseGroup?,
-    onPhraseSelected: (Phrase) -> Unit,
+    onCellSelected: (Phrase) -> Unit,
     resolveCachedIconFilePath: (String?) -> String?,
     modifier: Modifier = Modifier,
 ) {
@@ -186,16 +237,20 @@ private fun PhraseBoardCell(
         cachedBitmap != null -> null
         else -> placeholderPhraseIconResId()
     }
-    val contentDescription = if (group != null) {
-        stringResource(
+    val contentDescription = when {
+        phrase.isFolderCell -> stringResource(
+            R.string.board_folder_content_description,
+            phrase.label,
+        )
+        group != null -> stringResource(
             R.string.board_phrase_grouped_content_description,
             phrase.spokenText,
             group.name,
         )
-    } else {
-        phrase.spokenText
+        else -> phrase.spokenText
     }
-    val tint = phraseGroupBackground(group?.colorIndex)
+    // Folder cells stay ungrouped (no color tint) so icon + label carry meaning.
+    val tint = if (phrase.isFolderCell) null else phraseGroupBackground(group?.colorIndex)
 
     AacCellButton(
         label = phrase.label,
@@ -203,7 +258,7 @@ private fun PhraseBoardCell(
         iconResId = iconResId,
         iconBitmap = cachedBitmap,
         backgroundColor = tint,
-        onClick = { onPhraseSelected(phrase) },
+        onClick = { onCellSelected(phrase) },
         modifier = modifier,
     )
 }
@@ -214,18 +269,20 @@ private fun BoardScreenFivePhrasesPreview() {
     VocalTheme {
         BoardScreen(
             uiState = sampleBoardUiState(phraseCount = 5),
-            onPhraseSelected = {},
+            onCellSelected = {},
+            onGoHome = {},
         )
     }
 }
 
 @Preview(showBackground = true, widthDp = 800, heightDp = 500)
 @Composable
-private fun BoardScreenNinePhrasesPreview() {
+private fun BoardScreenTopicWithHomePreview() {
     VocalTheme {
         BoardScreen(
-            uiState = sampleBoardUiState(phraseCount = 9),
-            onPhraseSelected = {},
+            uiState = sampleBoardUiState(phraseCount = 6, isHome = false),
+            onCellSelected = {},
+            onGoHome = {},
         )
     }
 }
@@ -236,28 +293,32 @@ private fun BoardScreenSeventeenPhrasesPreview() {
     VocalTheme {
         BoardScreen(
             uiState = sampleBoardUiState(phraseCount = 17),
-            onPhraseSelected = {},
+            onCellSelected = {},
+            onGoHome = {},
         )
     }
 }
 
-private fun sampleBoardUiState(phraseCount: Int): BoardUiState {
+private fun sampleBoardUiState(phraseCount: Int, isHome: Boolean = true): BoardUiState {
     val groups = listOf(
         PhraseGroup(id = 1, boardId = 1, name = "Basics", colorIndex = 0, sortOrder = 0),
         PhraseGroup(id = 2, boardId = 1, name = "Needs", colorIndex = 2, sortOrder = 1),
     )
     return BoardUiState(
         board = Board(
-            id = 1,
-            name = "My Board",
+            id = if (isHome) 1 else 2,
+            name = if (isHome) "Home" else "Food & Drink",
             rows = 1,
             columns = 1,
+            seedKey = if (isHome) "home" else "food_drink",
+            isHome = isHome,
         ),
+        homeBoardId = 1,
         phrases = (1..phraseCount).map { index ->
             val zeroBasedIndex = index - 1
             Phrase(
                 id = index.toLong(),
-                boardId = 1,
+                boardId = if (isHome) 1 else 2,
                 label = samplePhraseLabel(index),
                 spokenText = samplePhraseSpokenText(index),
                 sortOrder = zeroBasedIndex,
@@ -267,10 +328,12 @@ private fun sampleBoardUiState(phraseCount: Int): BoardUiState {
                     4 -> 2L
                     else -> null
                 },
+                targetBoardId = if (isHome && index == 5) 2L else null,
             )
         },
         groups = groups,
         isLoading = false,
+        showHomeControl = !isHome,
     )
 }
 
@@ -279,14 +342,14 @@ private fun samplePhraseLabel(index: Int): String = when (index) {
     2 -> "No"
     3 -> "Help"
     4 -> "Water"
-    5 -> "Stop"
+    5 -> "Food & Drink"
     else -> "Phrase $index"
 }
 
 private fun samplePhraseSpokenText(index: Int): String = when (index) {
     3 -> "I need help"
     4 -> "I want water"
-    5 -> "Stop please"
+    5 -> "Food & Drink"
     else -> samplePhraseLabel(index)
 }
 
@@ -295,6 +358,6 @@ private fun samplePhraseIcon(index: Int): String? = when (index) {
     2 -> BundledPhraseIcons.NO
     3 -> BundledPhraseIcons.HELP
     4 -> BundledPhraseIcons.WATER
-    5 -> BundledPhraseIcons.STOP
+    5 -> BundledPhraseIcons.FOLDER
     else -> null
 }

@@ -15,6 +15,8 @@ data class BoardEntity(
     val rows: Int,
     val columns: Int,
     val isDefault: Boolean = false,
+    /** Stable seed key (home, food_drink, …); null for future custom boards. */
+    val seedKey: String? = null,
 )
 
 @Entity(
@@ -53,8 +55,14 @@ data class PhraseGroupEntity(
             childColumns = ["groupId"],
             onDelete = ForeignKey.SET_NULL,
         ),
+        ForeignKey(
+            entity = BoardEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["targetBoardId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
     ],
-    indices = [Index("boardId"), Index("groupId")],
+    indices = [Index("boardId"), Index("groupId"), Index("targetBoardId")],
 )
 data class PhraseEntity(
     @PrimaryKey(autoGenerate = true)
@@ -66,4 +74,6 @@ data class PhraseEntity(
     val iconPath: String? = null,
     val audioPath: String? = null,
     val groupId: Long? = null,
+    /** Non-null for folder cells that open another board instead of speaking. */
+    val targetBoardId: Long? = null,
 )

@@ -39,6 +39,12 @@ class BoardRepositoryImpl @Inject constructor(
     override fun observeDefaultBoard(): Flow<Board?> =
         boardDao.observeDefaultBoard().map { entity -> entity?.toDomain() }
 
+    override fun observeBoard(boardId: Long): Flow<Board?> =
+        boardDao.observeBoard(boardId).map { entity -> entity?.toDomain() }
+
+    override fun observeAllBoards(): Flow<List<Board>> =
+        boardDao.observeAllBoards().map { boards -> boards.map { it.toDomain() } }
+
     override fun observePhrases(boardId: Long): Flow<List<Phrase>> =
         phraseDao.observePhrasesForBoard(boardId).map { phrases ->
             phrases.map { it.toDomain() }
@@ -49,25 +55,25 @@ class BoardRepositoryImpl @Inject constructor(
         return board.toDomain()
     }
 
+    override suspend fun getBoard(boardId: Long): Board? =
+        boardDao.getBoard(boardId)?.toDomain()
+
     override suspend fun updateBoard(board: Board) {
         val existing = boardDao.getBoard(board.id) ?: return
-        boardDao.update(board.toEntity(isDefault = existing.isDefault))
+        boardDao.update(
+            board.toEntity(isDefault = existing.isDefault).copy(seedKey = board.seedKey ?: existing.seedKey),
+        )
     }
 
     override suspend fun resetToStarterBoard() {
         database.withTransaction {
-            val board = DefaultSeedData.ensureDefaultBoard(boardDao, phraseDao, phraseGroupDao)
-            val existingPhrases = phraseDao.getPhrasesForBoard(board.id)
+            val existingPhrases = boardDao.getAllBoards().flatMap { board ->
+                phraseDao.getPhrasesForBoard(board.id)
+            }
             deleteCustomPhraseMedia(existingPhrases)
-
-            // Clear assignments then delete groups/phrases so FK SET NULL is not needed mid-wipe.
-            phraseDao.deleteAllForBoard(board.id)
-            phraseGroupDao.deleteAllForBoard(board.id)
-
-            DefaultSeedData.seedStarterContent(board.id, phraseDao, phraseGroupDao)
+            DefaultSeedData.resetAllBoards(boardDao, phraseDao, phraseGroupDao)
         }
 
-        // Drop orphaned SymboTalk cache files that belonged to removed custom phrases.
         val referenced = phraseDao.getAllIconPaths()
         symbolCacheRepository.deleteUnreferencedCache(referenced)
     }

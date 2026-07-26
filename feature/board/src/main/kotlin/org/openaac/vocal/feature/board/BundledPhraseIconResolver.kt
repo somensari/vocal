@@ -35,6 +35,7 @@ internal fun bundledPhraseIconResId(iconPath: String?): Int? = when (iconPath) {
     BundledPhraseIcons.GOODBYE -> R.drawable.ic_phrase_goodbye
     BundledPhraseIcons.LOVE_YOU -> R.drawable.ic_phrase_love_you
     BundledPhraseIcons.SCHOOL -> R.drawable.ic_phrase_school
+    BundledPhraseIcons.FOLDER -> R.drawable.ic_phrase_folder
     BundledPhraseIcons.PLACEHOLDER -> R.drawable.ic_phrase_placeholder
     else -> null
 }

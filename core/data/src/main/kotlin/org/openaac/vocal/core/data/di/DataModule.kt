@@ -41,6 +41,7 @@ object DatabaseModule {
             VocalDatabase.MIGRATION_1_2,
             VocalDatabase.MIGRATION_2_3,
             VocalDatabase.MIGRATION_3_4,
+            VocalDatabase.MIGRATION_4_5,
         )
             .fallbackToDestructiveMigration()
             .build()

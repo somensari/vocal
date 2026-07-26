@@ -15,17 +15,38 @@ interface BoardDao {
     @Query("SELECT * FROM boards WHERE isDefault = 1 LIMIT 1")
     fun observeDefaultBoard(): Flow<BoardEntity?>
 
+    @Query("SELECT * FROM boards WHERE id = :id")
+    fun observeBoard(id: Long): Flow<BoardEntity?>
+
+    @Query("SELECT * FROM boards ORDER BY isDefault DESC, id ASC")
+    fun observeAllBoards(): Flow<List<BoardEntity>>
+
     @Query("SELECT * FROM boards WHERE isDefault = 1 LIMIT 1")
     suspend fun getDefaultBoard(): BoardEntity?
 
     @Query("SELECT * FROM boards WHERE id = :id")
     suspend fun getBoard(id: Long): BoardEntity?
 
+    @Query("SELECT * FROM boards WHERE seedKey = :seedKey LIMIT 1")
+    suspend fun getBoardBySeedKey(seedKey: String): BoardEntity?
+
+    @Query("SELECT * FROM boards ORDER BY isDefault DESC, id ASC")
+    suspend fun getAllBoards(): List<BoardEntity>
+
+    @Query("SELECT COUNT(*) FROM boards")
+    suspend fun countBoards(): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(board: BoardEntity): Long
 
     @Update
     suspend fun update(board: BoardEntity)
+
+    @Query("DELETE FROM boards WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
+    @Query("DELETE FROM boards")
+    suspend fun deleteAll()
 }
 
 @Dao
@@ -77,11 +98,24 @@ interface PhraseDao {
     @Query("DELETE FROM phrases WHERE boardId = :boardId")
     suspend fun deleteAllForBoard(boardId: Long)
 
+    @Query("DELETE FROM phrases")
+    suspend fun deleteAll()
+
     @Query("SELECT iconPath FROM phrases WHERE iconPath IS NOT NULL")
     suspend fun getAllIconPaths(): List<String>
 
     @Query("SELECT COALESCE(MAX(sortOrder), -1) FROM phrases WHERE boardId = :boardId")
     suspend fun maxSortOrder(boardId: Long): Int
+
+    @Query(
+        """
+        SELECT COUNT(*) FROM phrases
+        WHERE boardId = :boardId
+            AND targetBoardId IS NOT NULL
+            AND label = :label
+        """,
+    )
+    suspend fun countFolderCells(boardId: Long, label: String): Int
 }
 
 @Dao
@@ -109,4 +143,7 @@ interface PhraseGroupDao {
 
     @Query("DELETE FROM phrase_groups WHERE boardId = :boardId")
     suspend fun deleteAllForBoard(boardId: Long)
+
+    @Query("DELETE FROM phrase_groups")
+    suspend fun deleteAll()
 }

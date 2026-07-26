@@ -252,7 +252,7 @@ fun SettingsScreen(
             }
 
             item(key = "phrases-header") {
-                PhrasesOrderHeader()
+                PhrasesOrderHeader(boardName = uiState.editingBoardName)
             }
 
             item(key = "phrases-list") {
@@ -329,7 +329,7 @@ private fun DisabledAddPhraseFab(
 }
 
 @Composable
-private fun PhrasesOrderHeader() {
+private fun PhrasesOrderHeader(boardName: String) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -337,8 +337,16 @@ private fun PhrasesOrderHeader() {
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
-            text = stringResource(R.string.settings_phrases_title),
+            text = if (boardName.isBlank()) {
+                stringResource(R.string.settings_phrases_title)
+            } else {
+                stringResource(R.string.settings_phrases_title_for_board, boardName)
+            },
             style = MaterialTheme.typography.titleLarge,
+        )
+        Text(
+            text = stringResource(R.string.settings_phrases_board_scope_note),
+            style = MaterialTheme.typography.bodyLarge,
         )
         Text(
             text = stringResource(R.string.settings_phrases_order_description),
@@ -1133,6 +1141,7 @@ private fun SettingsScreenPreview() {
                 groups = listOf(
                     PhraseGroup(1, 1, "Basics", colorIndex = 0, sortOrder = 0),
                 ),
+                editingBoardName = "Home",
             ),
             onAddPhrase = {},
             onEditPhrase = {},

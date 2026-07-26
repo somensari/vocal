@@ -3,14 +3,17 @@ package org.openaac.vocal.feature.board
 import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.domain.model.PhraseGroup
+import org.openaac.vocal.core.domain.model.isFolderCell
 import org.openaac.vocal.core.domain.model.orderedPhrasesForBoard
 import org.openaac.vocal.core.domain.monitoring.MonitoringEvents
 import org.openaac.vocal.core.domain.repository.MonitoringRepository
 import org.openaac.vocal.core.domain.usecase.EnsureDefaultBoardUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveBoardPhrasesUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveBoardUseCase
+import org.openaac.vocal.core.domain.usecase.ObserveLastSelectedBoardIdUseCase
 import org.openaac.vocal.core.domain.usecase.ObservePhraseGroupsUseCase
 import org.openaac.vocal.core.domain.usecase.ResolveLocalSymbolFilePathUseCase
+import org.openaac.vocal.core.domain.usecase.SetLastSelectedBoardIdUseCase
 import org.openaac.vocal.core.domain.usecase.SpeakPhraseUseCase
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -21,6 +24,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -30,27 +34,38 @@ import javax.inject.Inject
 
 data class BoardUiState(
     val board: Board? = null,
+    val homeBoardId: Long? = null,
     val phrases: List<Phrase> = emptyList(),
     val groups: List<PhraseGroup> = emptyList(),
     val isLoading: Boolean = true,
+    val showHomeControl: Boolean = false,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class BoardViewModel @Inject constructor(
-    observeBoardUseCase: ObserveBoardUseCase,
+    private val observeBoardUseCase: ObserveBoardUseCase,
     observeBoardPhrasesUseCase: ObserveBoardPhrasesUseCase,
     observePhraseGroupsUseCase: ObservePhraseGroupsUseCase,
     private val ensureDefaultBoardUseCase: EnsureDefaultBoardUseCase,
+    private val observeLastSelectedBoardIdUseCase: ObserveLastSelectedBoardIdUseCase,
+    private val setLastSelectedBoardIdUseCase: SetLastSelectedBoardIdUseCase,
     private val speakPhraseUseCase: SpeakPhraseUseCase,
     private val resolveLocalSymbolFilePathUseCase: ResolveLocalSymbolFilePathUseCase,
     private val monitoringRepository: MonitoringRepository,
 ) : ViewModel() {
 
+    private val homeBoardId = MutableStateFlow<Long?>(null)
     private val activeBoardId = MutableStateFlow<Long?>(null)
 
     val uiState: StateFlow<BoardUiState> = combine(
-        observeBoardUseCase(),
+        activeBoardId.flatMapLatest { boardId ->
+            if (boardId == null) {
+                flowOf(null)
+            } else {
+                observeBoardUseCase(boardId)
+            }
+        },
         activeBoardId.flatMapLatest { boardId ->
             if (boardId == null) {
                 flowOf(emptyList())
@@ -65,12 +80,15 @@ class BoardViewModel @Inject constructor(
                 observePhraseGroupsUseCase(boardId)
             }
         },
-    ) { board, phrases, groups ->
+        homeBoardId,
+    ) { board, phrases, groups, homeId ->
         BoardUiState(
             board = board,
+            homeBoardId = homeId,
             phrases = orderedPhrasesForBoard(phrases),
             groups = groups,
             isLoading = board == null,
+            showHomeControl = board != null && homeId != null && board.id != homeId,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -83,8 +101,19 @@ class BoardViewModel @Inject constructor(
             val interactionId =
                 monitoringRepository.startInteraction(MonitoringEvents.Interaction.EnsureDefaultBoard)
             try {
-                val board = ensureDefaultBoardUseCase()
-                activeBoardId.value = board.id
+                val home = ensureDefaultBoardUseCase()
+                homeBoardId.value = home.id
+
+                val savedId = observeLastSelectedBoardIdUseCase().first()
+                val restored = savedId?.let { id ->
+                    observeBoardUseCase(id).first()
+                }
+                val initialId = restored?.id ?: home.id
+                activeBoardId.value = initialId
+                if (savedId != initialId) {
+                    setLastSelectedBoardIdUseCase(initialId)
+                }
+
                 monitoringRepository.recordCustomEvent(
                     eventName = MonitoringEvents.Name.DefaultBoardEnsured,
                     attributes = mapOf(MonitoringEvents.Attr.Success to true),
@@ -129,7 +158,29 @@ class BoardViewModel @Inject constructor(
         }
     }
 
-    fun onPhraseSelected(phrase: Phrase) {
+    fun onCellSelected(phrase: Phrase) {
+        val targetId = phrase.targetBoardId
+        if (phrase.isFolderCell && targetId != null) {
+            openBoard(targetId)
+            return
+        }
+        speakPhrase(phrase)
+    }
+
+    fun onGoHome() {
+        val homeId = homeBoardId.value ?: return
+        openBoard(homeId)
+    }
+
+    private fun openBoard(boardId: Long) {
+        if (activeBoardId.value == boardId) return
+        activeBoardId.value = boardId
+        viewModelScope.launch {
+            setLastSelectedBoardIdUseCase(boardId)
+        }
+    }
+
+    private fun speakPhrase(phrase: Phrase) {
         viewModelScope.launch {
             val interactionId =
                 monitoringRepository.startInteraction(MonitoringEvents.Interaction.SpeakPhrase)

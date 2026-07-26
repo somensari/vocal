@@ -8,6 +8,7 @@ import org.openaac.vocal.core.domain.model.PhraseGroup
 import org.openaac.vocal.core.domain.model.SavePhraseWithSymbolResult
 import org.openaac.vocal.core.domain.model.SymbolCacheMaxSizeMb
 import org.openaac.vocal.core.domain.model.SymbolCacheUsage
+import org.openaac.vocal.core.domain.model.isFolderCell
 import org.openaac.vocal.core.domain.model.orderedPhrasesForBoard
 import org.openaac.vocal.core.domain.usecase.AssignPhraseGroupUseCase
 import org.openaac.vocal.core.domain.usecase.CleanSymbolCacheUseCase
@@ -18,8 +19,10 @@ import org.openaac.vocal.core.domain.usecase.DeletePhraseGroupUseCase
 import org.openaac.vocal.core.domain.usecase.DeletePhraseUseCase
 import org.openaac.vocal.core.domain.usecase.EnsureDefaultBoardUseCase
 import org.openaac.vocal.core.domain.usecase.GetSymbolCacheUsageUseCase
-import org.openaac.vocal.core.domain.usecase.ObserveAllPhrasesUseCase
+import org.openaac.vocal.core.domain.usecase.ObserveBoardPhrasesUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveBoardThemePresetUseCase
+import org.openaac.vocal.core.domain.usecase.ObserveBoardUseCase
+import org.openaac.vocal.core.domain.usecase.ObserveLastSelectedBoardIdUseCase
 import org.openaac.vocal.core.domain.usecase.ObservePhraseGroupsUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveSymbolCacheMaxSizeUseCase
 import org.openaac.vocal.core.domain.usecase.RenamePhraseGroupUseCase
@@ -38,6 +41,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
@@ -78,7 +82,10 @@ enum class SettingsMessage {
 
 data class SettingsUiState(
     val phrases: List<Phrase> = emptyList(),
+    /** Folder navigation cells on the active board (not caregiver-editable in v1). */
+    val folderCells: List<Phrase> = emptyList(),
     val groups: List<PhraseGroup> = emptyList(),
+    val editingBoardName: String = "",
     val selectedBoardThemePreset: BoardThemePreset = BoardThemePreset.Default,
     val selectedSymbolCacheMaxSize: SymbolCacheMaxSizeMb = SymbolCacheMaxSizeMb.Default,
     val symbolCacheUsage: SymbolCacheUsage = SymbolCacheUsage(0L, SymbolCacheMaxSizeMb.Default.bytes),
@@ -96,11 +103,13 @@ data class SettingsUiState(
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    observeAllPhrasesUseCase: ObserveAllPhrasesUseCase,
+    observeBoardUseCase: ObserveBoardUseCase,
+    observeBoardPhrasesUseCase: ObserveBoardPhrasesUseCase,
     observeBoardThemePresetUseCase: ObserveBoardThemePresetUseCase,
     observeSymbolCacheMaxSizeUseCase: ObserveSymbolCacheMaxSizeUseCase,
     observePhraseGroupsUseCase: ObservePhraseGroupsUseCase,
     private val ensureDefaultBoardUseCase: EnsureDefaultBoardUseCase,
+    private val observeLastSelectedBoardIdUseCase: ObserveLastSelectedBoardIdUseCase,
     private val savePhraseWithSymbolUseCase: SavePhraseWithSymbolUseCase,
     private val deletePhraseUseCase: DeletePhraseUseCase,
     private val reorderPhrasesUseCase: ReorderPhrasesUseCase,
@@ -129,24 +138,31 @@ class SettingsViewModel @Inject constructor(
     )
     private val _boardId = MutableStateFlow<Long?>(null)
 
-    private var defaultBoardId: Long = 0
+    private var editingBoardId: Long = 0
 
     val uiState: StateFlow<SettingsUiState> = combine(
         combine(
-            observeAllPhrasesUseCase(),
+            _boardId.flatMapLatest { boardId ->
+                if (boardId == null) flowOf(emptyList()) else observeBoardPhrasesUseCase(boardId)
+            },
             _boardId.flatMapLatest { boardId ->
                 if (boardId == null) flowOf(emptyList()) else observePhraseGroupsUseCase(boardId)
             },
+            _boardId.flatMapLatest { boardId ->
+                if (boardId == null) flowOf(null) else observeBoardUseCase(boardId)
+            },
             observeBoardThemePresetUseCase(),
             observeSymbolCacheMaxSizeUseCase(),
-            _symbolCacheUsage,
-        ) { phrases, groups, boardThemePreset, cacheMaxSize, cacheUsage ->
+        ) { phrases, groups, board, boardThemePreset, cacheMaxSize ->
+            val ordered = orderedPhrasesForBoard(phrases)
             PhrasesGroupsThemeCache(
-                phrases = orderedPhrasesForBoard(phrases),
+                phrases = ordered.filterNot { it.isFolderCell },
+                folderCells = ordered.filter { it.isFolderCell },
                 groups = groups,
+                editingBoardName = board?.name.orEmpty(),
                 boardThemePreset = boardThemePreset,
                 cacheMaxSize = cacheMaxSize,
-                cacheUsage = cacheUsage,
+                cellCount = ordered.size,
             )
         },
         combine(
@@ -161,16 +177,19 @@ class SettingsViewModel @Inject constructor(
         combine(
             _isSavingPhrase,
             _isResettingBoard,
-        ) { saving, resetting ->
-            SavingFlags(saving, resetting)
+            _symbolCacheUsage,
+        ) { saving, resetting, cacheUsage ->
+            SavingFlags(saving, resetting, cacheUsage)
         },
     ) { phrasesGroupsThemeCache, dialogFlags, savingFlags ->
         SettingsUiState(
             phrases = phrasesGroupsThemeCache.phrases,
+            folderCells = phrasesGroupsThemeCache.folderCells,
             groups = phrasesGroupsThemeCache.groups,
+            editingBoardName = phrasesGroupsThemeCache.editingBoardName,
             selectedBoardThemePreset = phrasesGroupsThemeCache.boardThemePreset,
             selectedSymbolCacheMaxSize = phrasesGroupsThemeCache.cacheMaxSize,
-            symbolCacheUsage = phrasesGroupsThemeCache.cacheUsage,
+            symbolCacheUsage = savingFlags.cacheUsage,
             editor = dialogFlags.editor,
             groupEditor = dialogFlags.groupEditor,
             message = dialogFlags.message,
@@ -178,7 +197,7 @@ class SettingsViewModel @Inject constructor(
             showResetConfirmDialog = dialogFlags.showResetConfirmDialog,
             isSavingPhrase = savingFlags.isSavingPhrase,
             isResettingBoard = savingFlags.isResettingBoard,
-            canAddPhrase = phrasesGroupsThemeCache.phrases.size < MAX_BOARD_PHRASES,
+            canAddPhrase = phrasesGroupsThemeCache.cellCount < MAX_BOARD_PHRASES,
             canAddGroup = phrasesGroupsThemeCache.groups.size < MAX_PHRASE_GROUPS,
         )
     }.stateIn(
@@ -189,8 +208,11 @@ class SettingsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            defaultBoardId = ensureDefaultBoardUseCase().id
-            _boardId.value = defaultBoardId
+            val home = ensureDefaultBoardUseCase()
+            val savedId = observeLastSelectedBoardIdUseCase().first()
+            val restored = savedId?.let { id -> observeBoardUseCase(id).first() }
+            editingBoardId = restored?.id ?: home.id
+            _boardId.value = editingBoardId
             refreshCacheUsage()
         }
     }
@@ -236,6 +258,9 @@ class SettingsViewModel @Inject constructor(
             _isResettingBoard.value = true
             try {
                 resetBoardToStarterUseCase()
+                val home = ensureDefaultBoardUseCase()
+                editingBoardId = home.id
+                _boardId.value = home.id
                 _showResetConfirmDialog.value = false
                 _editor.value = null
                 _groupEditor.value = null
@@ -248,15 +273,17 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun startAddPhrase() {
-        if (uiState.value.phrases.size >= MAX_BOARD_PHRASES) {
+        val cellCount = uiState.value.phrases.size + uiState.value.folderCells.size
+        if (cellCount >= MAX_BOARD_PHRASES) {
             _message.value = SettingsMessage.PhraseLimitReached
             return
         }
-        _editor.value = PhraseEditorState(boardId = defaultBoardId)
+        _editor.value = PhraseEditorState(boardId = editingBoardId)
         _message.value = null
     }
 
     fun startEditPhrase(phrase: Phrase) {
+        if (phrase.isFolderCell) return
         _editor.value = PhraseEditorState(
             id = phrase.id,
             boardId = phrase.boardId,
@@ -294,7 +321,8 @@ class SettingsViewModel @Inject constructor(
         }
 
         val isNewPhrase = editor.id == 0L
-        if (isNewPhrase && uiState.value.phrases.size >= MAX_BOARD_PHRASES) {
+        val cellCount = uiState.value.phrases.size + uiState.value.folderCells.size
+        if (isNewPhrase && cellCount >= MAX_BOARD_PHRASES) {
             _message.value = SettingsMessage.PhraseLimitReached
             return
         }
@@ -305,7 +333,7 @@ class SettingsViewModel @Inject constructor(
                 val result = savePhraseWithSymbolUseCase(
                     Phrase(
                         id = editor.id,
-                        boardId = editor.boardId.takeIf { it > 0 } ?: defaultBoardId,
+                        boardId = editor.boardId.takeIf { it > 0 } ?: editingBoardId,
                         label = editor.label.trim(),
                         spokenText = editor.spokenText.trim(),
                         sortOrder = editor.sortOrder,
@@ -335,6 +363,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun deletePhrase(phrase: Phrase) {
+        if (phrase.isFolderCell) return
         viewModelScope.launch {
             deletePhraseUseCase(phrase.id)
             _message.value = SettingsMessage.PhraseDeleted
@@ -348,7 +377,7 @@ class SettingsViewModel @Inject constructor(
         val reordered = ordered.toMutableList().apply {
             add(index - 1, removeAt(index))
         }
-        persistOrder(reordered)
+        persistSpeakableOrder(reordered)
     }
 
     fun movePhraseDown(phrase: Phrase) {
@@ -358,19 +387,27 @@ class SettingsViewModel @Inject constructor(
         val reordered = ordered.toMutableList().apply {
             add(index + 1, removeAt(index))
         }
-        persistOrder(reordered)
+        persistSpeakableOrder(reordered)
     }
 
     fun reorderPhrases(orderedPhraseIds: List<Long>) {
         if (orderedPhraseIds.isEmpty()) return
-        viewModelScope.launch {
-            reorderPhrasesUseCase(orderedPhraseIds)
-        }
+        val speakable = uiState.value.phrases
+        val byId = speakable.associateBy { it.id }
+        val reordered = orderedPhraseIds.mapNotNull { byId[it] }
+        if (reordered.size != speakable.size) return
+        persistSpeakableOrder(reordered)
     }
 
-    private fun persistOrder(phrases: List<Phrase>) {
+    /**
+     * Reorders speakable phrases while keeping folder cells at the end of the board
+     * (v1: folders stay after caregiver-managed phrases).
+     */
+    private fun persistSpeakableOrder(speakableOrdered: List<Phrase>) {
+        val folders = uiState.value.folderCells
+        val combined = speakableOrdered + folders
         viewModelScope.launch {
-            reorderPhrasesUseCase(phrases.map { it.id })
+            reorderPhrasesUseCase(combined.map { it.id })
         }
     }
 
@@ -405,7 +442,7 @@ class SettingsViewModel @Inject constructor(
         }
         viewModelScope.launch {
             if (editor.id == 0L) {
-                when (createPhraseGroupUseCase(defaultBoardId, trimmed)) {
+                when (createPhraseGroupUseCase(editingBoardId, trimmed)) {
                     is CreatePhraseGroupResult.Created -> {
                         _groupEditor.value = null
                         _message.value = SettingsMessage.GroupCreated
@@ -484,10 +521,12 @@ class SettingsViewModel @Inject constructor(
 
     private data class PhrasesGroupsThemeCache(
         val phrases: List<Phrase>,
+        val folderCells: List<Phrase>,
         val groups: List<PhraseGroup>,
+        val editingBoardName: String,
         val boardThemePreset: BoardThemePreset,
         val cacheMaxSize: SymbolCacheMaxSizeMb,
-        val cacheUsage: SymbolCacheUsage,
+        val cellCount: Int,
     )
 
     private data class DialogFlags(
@@ -501,6 +540,7 @@ class SettingsViewModel @Inject constructor(
     private data class SavingFlags(
         val isSavingPhrase: Boolean,
         val isResettingBoard: Boolean,
+        val cacheUsage: SymbolCacheUsage,
     )
 
     companion object {

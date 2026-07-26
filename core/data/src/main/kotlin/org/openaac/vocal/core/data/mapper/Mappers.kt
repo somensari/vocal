@@ -12,14 +12,17 @@ internal fun BoardEntity.toDomain(): Board = Board(
     name = name,
     rows = rows,
     columns = columns,
+    seedKey = seedKey,
+    isHome = isDefault,
 )
 
-internal fun Board.toEntity(isDefault: Boolean): BoardEntity = BoardEntity(
+internal fun Board.toEntity(isDefault: Boolean = isHome): BoardEntity = BoardEntity(
     id = id,
     name = name,
     rows = rows,
     columns = columns,
     isDefault = isDefault,
+    seedKey = seedKey,
 )
 
 internal fun PhraseGroupEntity.toDomain(): PhraseGroup = PhraseGroup(
@@ -47,6 +50,7 @@ internal fun PhraseEntity.toDomain(): Phrase = Phrase(
     iconPath = iconPath,
     audioPath = audioPath,
     groupId = groupId,
+    targetBoardId = targetBoardId,
 )
 
 internal fun Phrase.toEntity(): PhraseEntity = PhraseEntity(
@@ -58,4 +62,5 @@ internal fun Phrase.toEntity(): PhraseEntity = PhraseEntity(
     iconPath = iconPath,
     audioPath = audioPath,
     groupId = groupId,
+    targetBoardId = targetBoardId,
 )

@@ -2,21 +2,41 @@ package org.openaac.vocal.core.data.mapper
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.openaac.vocal.core.data.local.entity.BoardEntity
 import org.openaac.vocal.core.data.local.entity.PhraseEntity
 import org.openaac.vocal.core.data.local.entity.PhraseGroupEntity
 import org.openaac.vocal.core.domain.model.Board
+import org.openaac.vocal.core.domain.model.BoardSeedKeys
 import org.openaac.vocal.core.domain.model.Phrase
 import org.openaac.vocal.core.domain.model.PhraseGroup
+import org.openaac.vocal.core.domain.model.isFolderCell
 
 class MapperTest {
 
     @Test
     fun boardEntity_roundTripsToDomain() {
-        val entity = BoardEntity(id = 1, name = "Home", rows = 4, columns = 4, isDefault = true)
+        val entity = BoardEntity(
+            id = 1,
+            name = "Home",
+            rows = 4,
+            columns = 4,
+            isDefault = true,
+            seedKey = BoardSeedKeys.HOME,
+        )
         val domain = entity.toDomain()
-        assertEquals(Board(id = 1, name = "Home", rows = 4, columns = 4), domain)
+        assertEquals(
+            Board(
+                id = 1,
+                name = "Home",
+                rows = 4,
+                columns = 4,
+                seedKey = BoardSeedKeys.HOME,
+                isHome = true,
+            ),
+            domain,
+        )
         assertEquals(entity, domain.toEntity(isDefault = true))
     }
 
@@ -60,6 +80,24 @@ class MapperTest {
         assertEquals(entity, domain.toEntity())
         assertEquals(5L, domain.groupId)
         assertEquals(1, domain.sortOrder)
+        assertNull(domain.targetBoardId)
+    }
+
+    @Test
+    fun phraseEntity_folderCellMapsTargetBoardId() {
+        val entity = PhraseEntity(
+            id = 11,
+            boardId = 1,
+            label = "Food & Drink",
+            spokenText = "Food & Drink",
+            sortOrder = 12,
+            iconPath = "vocal://bundled-icons/starter/folder",
+            targetBoardId = 2,
+        )
+        val domain = entity.toDomain()
+        assertEquals(entity, domain.toEntity())
+        assertEquals(2L, domain.targetBoardId)
+        assertTrue(domain.isFolderCell)
     }
 
     @Test
@@ -75,5 +113,6 @@ class MapperTest {
         assertNull(domain.iconPath)
         assertNull(domain.audioPath)
         assertNull(domain.groupId)
+        assertNull(domain.targetBoardId)
     }
 }
