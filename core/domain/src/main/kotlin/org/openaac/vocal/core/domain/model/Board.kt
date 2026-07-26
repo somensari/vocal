@@ -24,7 +24,7 @@ data class Board(
     val columns: Int,
     /** Stable seed key such as [BoardSeedKeys.HOME], or null for future custom boards. */
     val seedKey: String? = null,
-    /** True for the Home entry board (folder navigation root). */
+    /** True for the Home entry board (fixed first control in the board switcher). */
     val isHome: Boolean = false,
 )
 

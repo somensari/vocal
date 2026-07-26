@@ -8,6 +8,7 @@ import org.openaac.vocal.core.domain.model.orderedPhrasesForBoard
 import org.openaac.vocal.core.domain.monitoring.MonitoringEvents
 import org.openaac.vocal.core.domain.repository.MonitoringRepository
 import org.openaac.vocal.core.domain.usecase.EnsureDefaultBoardUseCase
+import org.openaac.vocal.core.domain.usecase.ObserveAllBoardsUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveBoardPhrasesUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveBoardUseCase
 import org.openaac.vocal.core.domain.usecase.ObserveLastSelectedBoardIdUseCase
@@ -35,11 +36,16 @@ import javax.inject.Inject
 data class BoardUiState(
     val board: Board? = null,
     val homeBoardId: Long? = null,
+    /** All boards for the switcher bar (Home first). Empty while loading. */
+    val boards: List<Board> = emptyList(),
     val phrases: List<Phrase> = emptyList(),
     val groups: List<PhraseGroup> = emptyList(),
     val isLoading: Boolean = true,
-    val showHomeControl: Boolean = false,
-)
+) {
+    /** Fixed board bar is shown only when more than one board exists. */
+    val showBoardSwitcher: Boolean
+        get() = boards.size > 1
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -47,6 +53,7 @@ class BoardViewModel @Inject constructor(
     private val observeBoardUseCase: ObserveBoardUseCase,
     observeBoardPhrasesUseCase: ObserveBoardPhrasesUseCase,
     observePhraseGroupsUseCase: ObservePhraseGroupsUseCase,
+    observeAllBoardsUseCase: ObserveAllBoardsUseCase,
     private val ensureDefaultBoardUseCase: EnsureDefaultBoardUseCase,
     private val observeLastSelectedBoardIdUseCase: ObserveLastSelectedBoardIdUseCase,
     private val setLastSelectedBoardIdUseCase: SetLastSelectedBoardIdUseCase,
@@ -81,14 +88,15 @@ class BoardViewModel @Inject constructor(
             }
         },
         homeBoardId,
-    ) { board, phrases, groups, homeId ->
+        observeAllBoardsUseCase(),
+    ) { board, phrases, groups, homeId, boards ->
         BoardUiState(
             board = board,
             homeBoardId = homeId,
+            boards = boards,
             phrases = orderedPhrasesForBoard(phrases),
             groups = groups,
             isLoading = board == null,
-            showHomeControl = board != null && homeId != null && board.id != homeId,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -167,9 +175,8 @@ class BoardViewModel @Inject constructor(
         speakPhrase(phrase)
     }
 
-    fun onGoHome() {
-        val homeId = homeBoardId.value ?: return
-        openBoard(homeId)
+    fun onBoardSelected(boardId: Long) {
+        openBoard(boardId)
     }
 
     private fun openBoard(boardId: Long) {

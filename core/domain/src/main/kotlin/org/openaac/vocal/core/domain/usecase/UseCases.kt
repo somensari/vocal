@@ -46,6 +46,13 @@ class ObserveBoardPhrasesUseCase @Inject constructor(
         boardRepository.observePhrases(boardId)
 }
 
+/** Observes all boards (Home first, then topic boards by id). */
+class ObserveAllBoardsUseCase @Inject constructor(
+    private val boardRepository: BoardRepository,
+) {
+    operator fun invoke(): Flow<List<Board>> = boardRepository.observeAllBoards()
+}
+
 /**
  * Ensures the seeded Home + topic boards exist and returns Home.
  */
