@@ -119,10 +119,12 @@ fun AacSecondaryButton(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     contentDescription: String = label,
 ) {
     OutlinedButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier
             .defaultMinSize(minWidth = AacMinTouchTarget, minHeight = AacMinTouchTarget)
             .semantics { this.contentDescription = contentDescription },
