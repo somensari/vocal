@@ -893,19 +893,24 @@ private fun PhraseListItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            IconButton(
-                onClick = {},
-                modifier = dragHandleModifier.defaultMinSize(
-                    minWidth = AacSecondaryTouchTarget,
-                    minHeight = AacSecondaryTouchTarget,
-                ),
+            val dragHandleDescription = stringResource(
+                R.string.settings_drag_phrase_handle,
+                phrase.label,
+            )
+            Box(
+                modifier = dragHandleModifier
+                    .defaultMinSize(
+                        minWidth = AacSecondaryTouchTarget,
+                        minHeight = AacSecondaryTouchTarget,
+                    )
+                    .clearAndSetSemantics {
+                        contentDescription = dragHandleDescription
+                    },
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Default.DragHandle,
-                    contentDescription = stringResource(
-                        R.string.settings_drag_phrase_handle,
-                        phrase.label,
-                    ),
+                    contentDescription = null,
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
