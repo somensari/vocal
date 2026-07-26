@@ -5,8 +5,10 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import org.openaac.vocal.core.data.local.entity.BoardEntity
 import org.openaac.vocal.core.data.local.entity.PhraseEntity
+import org.openaac.vocal.core.data.local.entity.PhraseGroupEntity
 import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.Phrase
+import org.openaac.vocal.core.domain.model.PhraseGroup
 
 class MapperTest {
 
@@ -26,6 +28,23 @@ class MapperTest {
     }
 
     @Test
+    fun phraseGroupEntity_roundTripsToDomain() {
+        val entity = PhraseGroupEntity(
+            id = 3,
+            boardId = 1,
+            name = "Needs",
+            colorIndex = 2,
+            sortOrder = 1,
+        )
+        val domain = entity.toDomain()
+        assertEquals(
+            PhraseGroup(id = 3, boardId = 1, name = "Needs", colorIndex = 2, sortOrder = 1),
+            domain,
+        )
+        assertEquals(entity, domain.toEntity())
+    }
+
+    @Test
     fun phraseEntity_roundTripsOptionalFields() {
         val entity = PhraseEntity(
             id = 10,
@@ -36,9 +55,11 @@ class MapperTest {
             column = 1,
             iconPath = "vocal://bundled-icons/starter/water",
             audioPath = "/data/user/0/org.openaac.vocal/files/water.m4a",
+            groupId = 5,
         )
         val domain = entity.toDomain()
         assertEquals(entity, domain.toEntity())
+        assertEquals(5L, domain.groupId)
     }
 
     @Test
@@ -54,5 +75,6 @@ class MapperTest {
         val domain = entity.toDomain()
         assertNull(domain.iconPath)
         assertNull(domain.audioPath)
+        assertNull(domain.groupId)
     }
 }

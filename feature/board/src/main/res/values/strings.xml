@@ -2,4 +2,6 @@
 <resources>
     <string name="board_title_default">Communication board</string>
     <string name="board_empty_message">No phrases yet. Ask a caregiver to add some in Settings.</string>
+    <!-- TalkBack: spoken text first, then group name so membership is not color-only. -->
+    <string name="board_phrase_grouped_content_description">%1$s, %2$s</string>
 </resources>

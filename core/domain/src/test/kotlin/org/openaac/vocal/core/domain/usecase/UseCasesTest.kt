@@ -8,10 +8,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.openaac.vocal.core.domain.model.Board
 import org.openaac.vocal.core.domain.model.BoardThemePreset
+import org.openaac.vocal.core.domain.model.MAX_PHRASE_GROUPS
 import org.openaac.vocal.core.domain.model.Phrase
+import org.openaac.vocal.core.domain.model.PhraseGroup
 import org.openaac.vocal.core.domain.model.SymbolCacheMaxSizeMb
 import org.openaac.vocal.core.domain.repository.BoardRepository
 import org.openaac.vocal.core.domain.repository.MonitoringRepository
+import org.openaac.vocal.core.domain.repository.PhraseGroupRepository
 import org.openaac.vocal.core.domain.repository.PhraseRepository
 import org.openaac.vocal.core.domain.repository.SpeechError
 import org.openaac.vocal.core.domain.repository.SpeechRepository
@@ -100,6 +103,48 @@ class UseCasesTest {
         val result = ObserveBoardPhrasesUseCase(boards).invoke(2L).first()
 
         assertEquals(phrases, result)
+    }
+
+    @Test
+    fun createPhraseGroupUseCase_blocksNinthGroup() = runTest {
+        val groups = FakePhraseGroupRepository()
+        groups.groups = (1..MAX_PHRASE_GROUPS).map { index ->
+            PhraseGroup(
+                id = index.toLong(),
+                boardId = 1,
+                name = "Group $index",
+                colorIndex = index - 1,
+                sortOrder = index - 1,
+            )
+        }
+
+        val result = CreatePhraseGroupUseCase(groups).invoke(1L, "Overflow")
+
+        assertEquals(CreatePhraseGroupResult.LimitReached, result)
+    }
+
+    @Test
+    fun createPhraseGroupUseCase_assignsUnusedColorIndex() = runTest {
+        val groups = FakePhraseGroupRepository()
+        groups.groups = listOf(
+            PhraseGroup(id = 1, boardId = 1, name = "A", colorIndex = 0, sortOrder = 0),
+            PhraseGroup(id = 2, boardId = 1, name = "B", colorIndex = 2, sortOrder = 1),
+        )
+
+        val result = CreatePhraseGroupUseCase(groups).invoke(1L, "C")
+
+        val created = result as CreatePhraseGroupResult.Created
+        assertEquals(1, groups.lastSaved?.colorIndex)
+        assertEquals(created.groupId, groups.lastSaved?.id)
+    }
+
+    @Test
+    fun deletePhraseGroupUseCase_delegatesToRepository() = runTest {
+        val groups = FakePhraseGroupRepository()
+
+        DeletePhraseGroupUseCase(groups).invoke(9L)
+
+        assertEquals(9L, groups.lastDeletedId)
     }
 
     private class FakeSpeechRepository : SpeechRepository {
@@ -198,5 +243,36 @@ class UseCasesTest {
             defaultBoard ?: error("default board not set")
 
         override suspend fun updateBoard(board: Board) = Unit
+    }
+
+    private class FakePhraseGroupRepository : PhraseGroupRepository {
+        var groups: List<PhraseGroup> = emptyList()
+        var lastSaved: PhraseGroup? = null
+        var lastDeletedId: Long? = null
+        private var nextId = 100L
+
+        override fun observeGroups(boardId: Long): Flow<List<PhraseGroup>> =
+            flowOf(groups.filter { it.boardId == boardId })
+
+        override suspend fun getGroups(boardId: Long): List<PhraseGroup> =
+            groups.filter { it.boardId == boardId }
+
+        override suspend fun getGroup(id: Long): PhraseGroup? =
+            groups.firstOrNull { it.id == id }
+
+        override suspend fun countGroups(boardId: Long): Int =
+            groups.count { it.boardId == boardId }
+
+        override suspend fun saveGroup(group: PhraseGroup): Long {
+            val id = if (group.id == 0L) nextId++ else group.id
+            lastSaved = group.copy(id = id)
+            return id
+        }
+
+        override suspend fun deleteGroup(id: Long) {
+            lastDeletedId = id
+        }
+
+        override suspend fun assignPhraseToGroup(phraseId: Long, groupId: Long?) = Unit
     }
 }

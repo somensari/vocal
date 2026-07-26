@@ -55,8 +55,10 @@ android {
 
 // Plugin is applied from the root project only when New Relic is enabled.
 // Never upload ProGuard maps unless a token is configured for this build.
+// Use the typed extension API so this compiles when the plugin is on the
+// classpath via `apply false` but not applied to this module.
 pluginManager.withPlugin("com.newrelic.agent.android") {
-    newrelic {
+    extensions.configure<com.newrelic.agent.android.NewRelicExtension>("newrelic") {
         uploadMapsForVariant(if (newRelicEnabled) "Release" else "")
     }
 }

@@ -18,7 +18,7 @@ data class BoardEntity(
 )
 
 @Entity(
-    tableName = "phrases",
+    tableName = "phrase_groups",
     foreignKeys = [
         ForeignKey(
             entity = BoardEntity::class,
@@ -28,6 +28,33 @@ data class BoardEntity(
         ),
     ],
     indices = [Index("boardId")],
+)
+data class PhraseGroupEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val boardId: Long,
+    val name: String,
+    val colorIndex: Int,
+    val sortOrder: Int,
+)
+
+@Entity(
+    tableName = "phrases",
+    foreignKeys = [
+        ForeignKey(
+            entity = BoardEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["boardId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = PhraseGroupEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["groupId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+    ],
+    indices = [Index("boardId"), Index("groupId")],
 )
 data class PhraseEntity(
     @PrimaryKey(autoGenerate = true)
@@ -39,4 +66,5 @@ data class PhraseEntity(
     val column: Int,
     val iconPath: String? = null,
     val audioPath: String? = null,
+    val groupId: Long? = null,
 )

@@ -13,6 +13,8 @@
     <string name="settings_field_spoken_text">Spoken text</string>
     <string name="settings_field_row">Grid row</string>
     <string name="settings_field_column">Grid column</string>
+    <string name="settings_field_group">Phrase group</string>
+    <string name="settings_group_none">No group</string>
     <string name="settings_save">Save</string>
     <string name="settings_cancel">Cancel</string>
     <string name="settings_message_missing_required_fields">Label and spoken text are required.</string>
@@ -23,6 +25,8 @@
     <string name="settings_add_phrase_limit_reached">Cannot add phrase. Board limit of 32 phrases reached.</string>
     <string name="settings_phrase_speaks">Speaks: %1$s</string>
     <string name="settings_phrase_position">Position: row %1$d, column %2$d</string>
+    <string name="settings_phrase_group">Group: %1$s</string>
+    <string name="settings_phrase_ungrouped">Group: none</string>
     <string name="settings_edit_phrase">Edit %1$s</string>
     <string name="settings_delete_phrase">Delete %1$s</string>
     <string name="settings_speech_test_title">Speech output</string>
@@ -30,6 +34,21 @@
     <string name="settings_speech_test_button">Test speech</string>
     <string name="settings_message_speech_test_ok">Speech test sent to the device TTS engine.</string>
     <string name="settings_message_speech_test_failed">Speech output is unavailable. Check device TTS settings or audio output.</string>
+
+    <string name="settings_groups_title">Phrase groups</string>
+    <string name="settings_groups_description">Organize related phrases with a subtle color on the board. Up to 8 groups. Colors are assigned automatically.</string>
+    <string name="settings_add_group">Add group</string>
+    <string name="settings_add_group_title">Add group</string>
+    <string name="settings_rename_group_title">Rename group</string>
+    <string name="settings_field_group_name">Group name</string>
+    <string name="settings_edit_group">Rename %1$s</string>
+    <string name="settings_delete_group">Delete %1$s</string>
+    <string name="settings_message_group_created">Group created.</string>
+    <string name="settings_message_group_renamed">Group renamed.</string>
+    <string name="settings_message_group_deleted">Group deleted. Its phrases are now ungrouped.</string>
+    <string name="settings_message_group_limit_reached">This board can have at most 8 groups. Delete a group before creating another.</string>
+    <string name="settings_message_group_name_required">Group name is required.</string>
+    <string name="settings_add_group_limit_reached">Cannot add group. Limit of 8 groups reached.</string>
 
     <string name="settings_symbol_cache_title">Symbol image cache</string>
     <string name="settings_symbol_cache_description">Downloaded SymboTalk symbols are stored on this device for offline board use. Bundled starter icons do not count toward this limit.</string>
