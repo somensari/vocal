@@ -78,6 +78,7 @@ enum class SettingsMessage {
     GroupLimitReached,
     GroupNameRequired,
     BoardReset,
+    PhraseMoved,
 }
 
 data class SettingsUiState(
@@ -91,6 +92,8 @@ data class SettingsUiState(
     val symbolCacheUsage: SymbolCacheUsage = SymbolCacheUsage(0L, SymbolCacheMaxSizeMb.Default.bytes),
     val editor: PhraseEditorState? = null,
     val groupEditor: GroupEditorState? = null,
+    /** Phrase currently choosing a destination group via the non-gesture Move dialog. */
+    val movePhrase: Phrase? = null,
     val message: SettingsMessage? = null,
     val showCacheLimitDialog: Boolean = false,
     val showResetConfirmDialog: Boolean = false,
@@ -128,6 +131,7 @@ class SettingsViewModel @Inject constructor(
 
     private val _editor = MutableStateFlow<PhraseEditorState?>(null)
     private val _groupEditor = MutableStateFlow<GroupEditorState?>(null)
+    private val _movePhrase = MutableStateFlow<Phrase?>(null)
     private val _message = MutableStateFlow<SettingsMessage?>(null)
     private val _showCacheLimitDialog = MutableStateFlow(false)
     private val _showResetConfirmDialog = MutableStateFlow(false)
@@ -168,11 +172,20 @@ class SettingsViewModel @Inject constructor(
         combine(
             _editor,
             _groupEditor,
+            _movePhrase,
             _message,
-            _showCacheLimitDialog,
-            _showResetConfirmDialog,
-        ) { editor, groupEditor, message, limitDialog, resetDialog ->
-            DialogFlags(editor, groupEditor, message, limitDialog, resetDialog)
+            combine(_showCacheLimitDialog, _showResetConfirmDialog) { limitDialog, resetDialog ->
+                limitDialog to resetDialog
+            },
+        ) { editor, groupEditor, movePhrase, message, dialogs ->
+            DialogFlags(
+                editor = editor,
+                groupEditor = groupEditor,
+                movePhrase = movePhrase,
+                message = message,
+                showCacheLimitDialog = dialogs.first,
+                showResetConfirmDialog = dialogs.second,
+            )
         },
         combine(
             _isSavingPhrase,
@@ -192,6 +205,7 @@ class SettingsViewModel @Inject constructor(
             symbolCacheUsage = savingFlags.cacheUsage,
             editor = dialogFlags.editor,
             groupEditor = dialogFlags.groupEditor,
+            movePhrase = dialogFlags.movePhrase,
             message = dialogFlags.message,
             showCacheLimitDialog = dialogFlags.showCacheLimitDialog,
             showResetConfirmDialog = dialogFlags.showResetConfirmDialog,
@@ -264,6 +278,7 @@ class SettingsViewModel @Inject constructor(
                 _showResetConfirmDialog.value = false
                 _editor.value = null
                 _groupEditor.value = null
+                _movePhrase.value = null
                 _message.value = SettingsMessage.BoardReset
                 refreshCacheUsage()
             } finally {
@@ -473,6 +488,28 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /** Opens the non-gesture "Move to group…" chooser for [phrase]. */
+    fun startMovePhrase(phrase: Phrase) {
+        _movePhrase.value = phrase
+        _message.value = null
+    }
+
+    fun dismissMovePhrase() {
+        _movePhrase.value = null
+    }
+
+    /**
+     * Moves [phraseId] into [groupId] (or ungrouped when null).
+     * Used by both drag-and-drop and the Move dialog.
+     */
+    fun movePhraseToGroup(phraseId: Long, groupId: Long?) {
+        viewModelScope.launch {
+            assignPhraseGroupUseCase(phraseId, groupId)
+            _movePhrase.value = null
+            _message.value = SettingsMessage.PhraseMoved
+        }
+    }
+
     fun clearMessage() {
         _message.value = null
     }
@@ -532,6 +569,7 @@ class SettingsViewModel @Inject constructor(
     private data class DialogFlags(
         val editor: PhraseEditorState?,
         val groupEditor: GroupEditorState?,
+        val movePhrase: Phrase?,
         val message: SettingsMessage?,
         val showCacheLimitDialog: Boolean,
         val showResetConfirmDialog: Boolean,

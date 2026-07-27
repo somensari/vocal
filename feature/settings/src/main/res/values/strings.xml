@@ -27,12 +27,10 @@
     <string name="settings_edit_phrase">Edit %1$s</string>
     <string name="settings_delete_phrase">Delete %1$s</string>
     <string name="settings_phrases_title">Phrases</string>
-    <string name="settings_phrases_title_for_board">Phrases — %1$s</string>
-    <string name="settings_phrases_board_scope_note">Edits apply to the board last opened on the main screen. Open a topic board there first to edit its phrases. Folder cells are not listed here. There is no board picker in Settings in this version.</string>
-    <string name="settings_phrases_order_description">Drag the handle or use Move up / Move down to change board order. The board fills top to bottom, then left to right.</string>
+    <string name="settings_phrases_title_for_board">Organize phrases — %1$s</string>
+    <string name="settings_phrases_board_scope_note">Edits apply to the board last opened on the main screen. Use the board switcher there first to open a topic board. Folder cells are not listed here. There is no board picker in Settings in this version.</string>
     <string name="settings_move_phrase_up">Move %1$s up</string>
     <string name="settings_move_phrase_down">Move %1$s down</string>
-    <string name="settings_drag_phrase_handle">Drag to reorder %1$s</string>
     <string name="settings_reset_title">Reset boards</string>
     <string name="settings_reset_description">Replace every phrase on all seeded boards (Home and topic boards) with the app starter set, folder cells, and bundled icons. Custom icons and recorded audio for current phrases are deleted.</string>
     <string name="settings_reset_button">Reset to starter boards</string>
@@ -61,6 +59,19 @@
     <string name="settings_message_group_limit_reached">This board can have at most 8 groups. Delete a group before creating another.</string>
     <string name="settings_message_group_name_required">Group name is required.</string>
     <string name="settings_add_group_limit_reached">Cannot add group. Limit of 8 groups reached.</string>
+
+    <string name="settings_organize_phrases_title">Organize phrases</string>
+    <string name="settings_organize_phrases_description">Drag a phrase onto a group (or Ungrouped), or use Move to group. Use Move up / Move down to change board order. The board stays a calm grid without these controls.</string>
+    <string name="settings_ungrouped_section">Ungrouped</string>
+    <string name="settings_group_section_empty">No phrases in this group yet. Drag a phrase here or use Move to group.</string>
+    <string name="settings_ungrouped_section_empty">No ungrouped phrases.</string>
+    <string name="settings_move_phrase">Move %1$s to group</string>
+    <string name="settings_move_phrase_button">Move</string>
+    <string name="settings_move_phrase_title">Move to group</string>
+    <string name="settings_move_phrase_message">Choose a group for %1$s, or leave it ungrouped.</string>
+    <string name="settings_drag_phrase_handle">Drag %1$s to another group</string>
+    <string name="settings_drop_target_active">Drop here to move into %1$s</string>
+    <string name="settings_message_phrase_moved">Phrase moved.</string>
 
     <string name="settings_symbol_cache_title">Symbol image cache</string>
     <string name="settings_symbol_cache_description">Downloaded SymboTalk symbols are stored on this device for offline board use. Bundled starter icons do not count toward this limit.</string>
