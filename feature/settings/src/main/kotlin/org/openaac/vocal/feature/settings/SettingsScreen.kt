@@ -266,6 +266,7 @@ fun SettingsScreen(
 
             item(key = "organize-phrases") {
                 OrganizePhrasesSection(
+                    boardName = uiState.editingBoardName,
                     phrases = uiState.phrases,
                     groups = uiState.groups,
                     onEditPhrase = onEditPhrase,
@@ -787,6 +788,7 @@ private fun BoardThemePreset.labelResId(): Int = when (this) {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun OrganizePhrasesSection(
+    boardName: String,
     phrases: List<Phrase>,
     groups: List<PhraseGroup>,
     onEditPhrase: (Phrase) -> Unit,
@@ -815,8 +817,16 @@ private fun OrganizePhrasesSection(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            text = stringResource(R.string.settings_organize_phrases_title),
+            text = if (boardName.isBlank()) {
+                stringResource(R.string.settings_organize_phrases_title)
+            } else {
+                stringResource(R.string.settings_phrases_title_for_board, boardName)
+            },
             style = MaterialTheme.typography.titleLarge,
+        )
+        Text(
+            text = stringResource(R.string.settings_phrases_board_scope_note),
+            style = MaterialTheme.typography.bodyLarge,
         )
         Text(
             text = stringResource(R.string.settings_organize_phrases_description),
@@ -1303,6 +1313,7 @@ private fun SettingsScreenPreview() {
                 groups = listOf(
                     PhraseGroup(1, 1, "Basics", colorIndex = 0, sortOrder = 0),
                 ),
+                editingBoardName = "Home",
             ),
             onAddPhrase = {},
             onEditPhrase = {},

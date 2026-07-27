@@ -41,6 +41,9 @@ object BundledPhraseIcons {
     const val LOVE_YOU = "vocal://bundled-icons/starter/love_you"
     const val SCHOOL = "vocal://bundled-icons/starter/school"
 
+    /** Folder cell icon for Home → topic board navigation (not spoken). */
+    const val FOLDER = "vocal://bundled-icons/starter/folder"
+
     /** Generic fallback when no bundled or cached symbol is available. */
     const val PLACEHOLDER = "vocal://bundled-icons/starter/placeholder"
 

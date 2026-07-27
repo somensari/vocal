@@ -4,4 +4,14 @@
     <string name="board_empty_message">No phrases yet. Ask a caregiver to add some in Settings.</string>
     <!-- TalkBack: spoken text first, then group name so membership is not color-only. -->
     <string name="board_phrase_grouped_content_description">%1$s, %2$s</string>
+    <!-- TalkBack: folder cells are navigation, not speakable phrases. -->
+    <string name="board_folder_content_description">Open %1$s</string>
+    <string name="board_home_content_description">Go to Home board</string>
+    <string name="board_home_label">Home</string>
+    <!-- TalkBack for topic buttons in the fixed board switcher bar. -->
+    <string name="board_switcher_content_description">Show %1$s board</string>
+    <!-- Compact bar labels (full board name remains in TalkBack). -->
+    <string name="board_switcher_short_food_drink">Food</string>
+    <string name="board_switcher_short_feelings">Feelings</string>
+    <string name="board_switcher_short_people">People</string>
 </resources>

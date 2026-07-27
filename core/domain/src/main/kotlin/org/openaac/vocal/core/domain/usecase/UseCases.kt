@@ -32,7 +32,11 @@ sealed class CreatePhraseGroupResult {
 class ObserveBoardUseCase @Inject constructor(
     private val boardRepository: BoardRepository,
 ) {
+    /** Observes the Home board. */
     operator fun invoke(): Flow<Board?> = boardRepository.observeDefaultBoard()
+
+    /** Observes a specific board by id. */
+    operator fun invoke(boardId: Long): Flow<Board?> = boardRepository.observeBoard(boardId)
 }
 
 class ObserveBoardPhrasesUseCase @Inject constructor(
@@ -42,6 +46,16 @@ class ObserveBoardPhrasesUseCase @Inject constructor(
         boardRepository.observePhrases(boardId)
 }
 
+/** Observes all boards (Home first, then topic boards by id). */
+class ObserveAllBoardsUseCase @Inject constructor(
+    private val boardRepository: BoardRepository,
+) {
+    operator fun invoke(): Flow<List<Board>> = boardRepository.observeAllBoards()
+}
+
+/**
+ * Ensures the seeded Home + topic boards exist and returns Home.
+ */
 class EnsureDefaultBoardUseCase @Inject constructor(
     private val boardRepository: BoardRepository,
 ) {
@@ -55,13 +69,28 @@ class UpdateBoardUseCase @Inject constructor(
 }
 
 /**
- * Caregiver-only: after confirmation in Settings, restores the starter board
- * (phrases + groups + bundled icons) and deletes custom local media files.
+ * Caregiver-only: after confirmation in Settings, restores the seeded Home +
+ * topic boards (phrases + groups + bundled icons + folder cells) and deletes
+ * custom local media files.
  */
 class ResetBoardToStarterUseCase @Inject constructor(
     private val boardRepository: BoardRepository,
 ) {
     suspend operator fun invoke() = boardRepository.resetToStarterBoard()
+}
+
+class ObserveLastSelectedBoardIdUseCase @Inject constructor(
+    private val userPreferencesRepository: UserPreferencesRepository,
+) {
+    operator fun invoke(): Flow<Long?> = userPreferencesRepository.lastSelectedBoardId
+}
+
+class SetLastSelectedBoardIdUseCase @Inject constructor(
+    private val userPreferencesRepository: UserPreferencesRepository,
+) {
+    suspend operator fun invoke(boardId: Long?) {
+        userPreferencesRepository.setLastSelectedBoardId(boardId)
+    }
 }
 
 class SpeakPhraseUseCase @Inject constructor(

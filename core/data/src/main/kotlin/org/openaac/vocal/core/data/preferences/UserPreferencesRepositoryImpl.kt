@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import org.openaac.vocal.core.domain.model.BoardThemePreset
@@ -29,6 +30,7 @@ class UserPreferencesRepositoryImpl @Inject constructor(
     private val speechRateKey = floatPreferencesKey("speech_rate")
     private val boardThemePresetKey = stringPreferencesKey("board_theme_preset")
     private val symbolCacheMaxSizeMbKey = intPreferencesKey("symbol_cache_max_size_mb")
+    private val lastSelectedBoardIdKey = longPreferencesKey("last_selected_board_id")
 
     override val speechRate: Flow<Float> =
         context.userPreferencesDataStore.data.map { prefs ->
@@ -43,6 +45,11 @@ class UserPreferencesRepositoryImpl @Inject constructor(
     override val symbolCacheMaxSizeMb: Flow<SymbolCacheMaxSizeMb> =
         context.userPreferencesDataStore.data.map { prefs ->
             SymbolCacheMaxSizeMb.fromMegabytes(prefs[symbolCacheMaxSizeMbKey])
+        }
+
+    override val lastSelectedBoardId: Flow<Long?> =
+        context.userPreferencesDataStore.data.map { prefs ->
+            prefs[lastSelectedBoardIdKey]
         }
 
     override suspend fun setSpeechRate(rate: Float) {
@@ -60,6 +67,16 @@ class UserPreferencesRepositoryImpl @Inject constructor(
     override suspend fun setSymbolCacheMaxSizeMb(maxSize: SymbolCacheMaxSizeMb) {
         context.userPreferencesDataStore.edit { prefs ->
             prefs[symbolCacheMaxSizeMbKey] = maxSize.megabytes
+        }
+    }
+
+    override suspend fun setLastSelectedBoardId(boardId: Long?) {
+        context.userPreferencesDataStore.edit { prefs ->
+            if (boardId == null) {
+                prefs.remove(lastSelectedBoardIdKey)
+            } else {
+                prefs[lastSelectedBoardIdKey] = boardId
+            }
         }
     }
 

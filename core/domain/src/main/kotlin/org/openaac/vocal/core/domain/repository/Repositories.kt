@@ -10,14 +10,28 @@ import org.openaac.vocal.core.domain.model.SymbolMatchResult
 import kotlinx.coroutines.flow.Flow
 
 interface BoardRepository {
+    /** Observes the Home board (folder navigation root). */
     fun observeDefaultBoard(): Flow<Board?>
+
+    fun observeBoard(boardId: Long): Flow<Board?>
+
+    fun observeAllBoards(): Flow<List<Board>>
+
     fun observePhrases(boardId: Long): Flow<List<Phrase>>
+
+    /**
+     * Ensures the seeded Home + topic boards exist (up to [org.openaac.vocal.core.domain.model.MAX_BOARDS])
+     * and returns the Home board.
+     */
     suspend fun ensureDefaultBoard(): Board
+
+    suspend fun getBoard(boardId: Long): Board?
+
     suspend fun updateBoard(board: Board)
 
     /**
      * Full replace: deletes all phrases (and their custom local icon/audio files)
-     * and groups on the default board, then restores the starter set with bundled icons.
+     * and groups on every board, then restores the seeded Home + folder board set.
      */
     suspend fun resetToStarterBoard()
 }
@@ -110,7 +124,10 @@ interface UserPreferencesRepository {
     val speechRate: Flow<Float>
     val boardThemePreset: Flow<BoardThemePreset>
     val symbolCacheMaxSizeMb: Flow<SymbolCacheMaxSizeMb>
+    /** Last board opened on the main AAC screen; null means fall back to Home. */
+    val lastSelectedBoardId: Flow<Long?>
     suspend fun setSpeechRate(rate: Float)
     suspend fun setBoardThemePreset(preset: BoardThemePreset)
     suspend fun setSymbolCacheMaxSizeMb(maxSize: SymbolCacheMaxSizeMb)
+    suspend fun setLastSelectedBoardId(boardId: Long?)
 }
